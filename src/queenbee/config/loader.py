@@ -49,6 +49,7 @@ class AgentPromptConfig(BaseSettings):
 
     system_prompt_file: str
     max_iterations: int = Field(default=5)
+    complexity_threshold: str = Field(default="auto")
 
 
 class AgentsConfig(BaseSettings):

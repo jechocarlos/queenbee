@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: queenbee-postgres
+    environment:
+      POSTGRES_USER: queenbee
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: queenbee
+    ports:
+      - "5432:5432"
+    volumes:
+      - queenbee-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U queenbee"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - queenbee-network
+
+volumes:
+  queenbee-postgres-data:
+    name: queenbee-postgres-data
+
+networks:
+  queenbee-network:
+    name: queenbee-network
+    driver: bridge

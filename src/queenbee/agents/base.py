@@ -128,8 +128,10 @@ class BaseAgent:
             prompt=prompt,
             system=self.system_prompt,
             temperature=temperature,
+            stream=False,  # Disable streaming for MVP
         )
-        return response
+        # Type checker doesn't know stream=False guarantees str return
+        return response if isinstance(response, str) else "".join(response)
 
     def terminate(self) -> None:
         """Terminate agent."""

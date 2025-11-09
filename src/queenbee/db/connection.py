@@ -2,7 +2,7 @@
 
 import logging
 from contextlib import contextmanager
-from typing import Generator
+from typing import Any, Generator
 
 import psycopg
 from psycopg import Connection
@@ -35,7 +35,7 @@ class DatabaseManager:
             logger.info(f"Connecting to database: {self.config.host}:{self.config.port}/{self.config.name}")
             self._connection = psycopg.connect(
                 self.config.connection_string,
-                row_factory=dict_row,
+                row_factory=dict_row,  # type: ignore[arg-type]
                 autocommit=False,
             )
         return self._connection

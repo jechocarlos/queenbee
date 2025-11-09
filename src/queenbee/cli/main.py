@@ -99,16 +99,21 @@ def main() -> int:
 
         # Start session
         with SessionManager(db) as session_mgr:
+            session_id = session_mgr.current_session_id
+            if session_id is None:
+                console.print("[red]✗ Failed to create session[/red]")
+                return 1
+            
             # Initialize Queen agent
             queen = QueenAgent(
-                session_id=session_mgr.current_session_id,
+                session_id=session_id,
                 config=config,
                 db=db,
             )
 
             # Print banner
             print_banner()
-            console.print(f"[green]✓ Session started: {session_mgr.current_session_id}[/green]")
+            console.print(f"[green]✓ Session started: {session_id}[/green]")
             console.print(f"[green]✓ Queen agent ready[/green]\n")
 
             # Main interaction loop

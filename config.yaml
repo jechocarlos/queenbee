@@ -13,7 +13,7 @@ database:
 
 ollama:
   host: ${OLLAMA_HOST:http://localhost:11434}
-  model: llama3.1:8b
+  model: deepseek-r1:1.5b
   timeout: 120
 
 agents:
@@ -27,18 +27,17 @@ agents:
     system_prompt_file: ./prompts/queen.md
     complexity_threshold: auto
   
-  specialists:
-    divergent:
-      system_prompt_file: ./prompts/divergent.md
-      max_iterations: 5
-    
-    convergent:
-      system_prompt_file: ./prompts/convergent.md
-      max_iterations: 5
-    
-    critical:
-      system_prompt_file: ./prompts/critical.md
-      max_iterations: 5
+  divergent:
+    system_prompt_file: ./prompts/divergent.md
+    max_iterations: 5
+  
+  convergent:
+    system_prompt_file: ./prompts/convergent.md
+    max_iterations: 5
+  
+  critical:
+    system_prompt_file: ./prompts/critical.md
+    max_iterations: 5
 
 consensus:
   max_rounds: 10

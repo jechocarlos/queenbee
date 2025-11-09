@@ -2,6 +2,7 @@
 
 import logging
 import re
+from typing import Iterator, Union
 from uuid import UUID
 
 from queenbee.agents.base import BaseAgent
@@ -26,14 +27,15 @@ class QueenAgent(BaseAgent):
         super().__init__(AgentType.QUEEN, session_id, config, db)
         self.chat_repo = ChatRepository(db)
 
-    def process_request(self, user_input: str) -> str:
+    def process_request(self, user_input: str, stream: bool = False) -> Union[str, Iterator[str]]:
         """Process user request and return response.
 
         Args:
             user_input: User's input text.
+            stream: Whether to enable streaming responses.
 
         Returns:
-            Response to user.
+            Response to user (str) or iterator of response chunks (Iterator[str]).
         """
         # Log user message to chat history
         self.chat_repo.add_message(
@@ -46,17 +48,19 @@ class QueenAgent(BaseAgent):
         is_complex = self._analyze_complexity(user_input)
 
         if is_complex:
-            response = self._handle_complex_request(user_input)
+            response = self._handle_complex_request(user_input, stream=stream)
         else:
-            response = self._handle_simple_request(user_input)
+            response = self._handle_simple_request(user_input, stream=stream)
 
-        # Log Queen's response to chat history
-        self.chat_repo.add_message(
-            session_id=self.session_id,
-            agent_id=self.agent_id,
-            role=MessageRole.QUEEN,
-            content=response,
-        )
+        # If streaming, we can't log yet - caller will handle logging
+        if not stream:
+            # Log Queen's response to chat history
+            self.chat_repo.add_message(
+                session_id=self.session_id,
+                agent_id=self.agent_id,
+                role=MessageRole.QUEEN,
+                content=str(response),
+            )
 
         return response
 
@@ -103,27 +107,29 @@ class QueenAgent(BaseAgent):
 
         return is_complex
 
-    def _handle_simple_request(self, user_input: str) -> str:
+    def _handle_simple_request(self, user_input: str, stream: bool = False) -> Union[str, Iterator[str]]:
         """Handle simple request directly.
 
         Args:
             user_input: User's input text.
+            stream: Whether to enable streaming.
 
         Returns:
-            Response.
+            Response (str) or iterator of chunks (Iterator[str]).
         """
         logger.info("Handling simple request directly")
-        response = self.generate_response(user_input)
+        response = self.generate_response(user_input, stream=stream)
         return response
 
-    def _handle_complex_request(self, user_input: str) -> str:
+    def _handle_complex_request(self, user_input: str, stream: bool = False) -> Union[str, Iterator[str]]:
         """Handle complex request by spawning specialists.
 
         Args:
             user_input: User's input text.
+            stream: Whether to enable streaming.
 
         Returns:
-            Aggregated response.
+            Aggregated response (str) or iterator of chunks (Iterator[str]).
         """
         logger.info("Detected complex request - spawning specialists")
         
@@ -137,6 +143,14 @@ class QueenAgent(BaseAgent):
         )
         
         # Generate response directly for now
-        direct_response = self.generate_response(user_input)
+        direct_response = self.generate_response(user_input, stream=stream)
         
-        return placeholder_response + direct_response
+        # If streaming, we need to yield the placeholder first, then the stream
+        if stream:
+            def response_generator():
+                yield placeholder_response
+                for chunk in direct_response:  # type: ignore
+                    yield chunk
+            return response_generator()
+        else:
+            return placeholder_response + str(direct_response)

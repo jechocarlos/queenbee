@@ -4,16 +4,21 @@ import logging
 import signal
 import sys
 from pathlib import Path
+from typing import Iterator
 
 from rich.console import Console
+from rich.live import Live
 from rich.logging import RichHandler
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
+from rich.table import Table
 
 from queenbee import __version__
 from queenbee.agents.queen import QueenAgent
 from queenbee.config.loader import load_config
 from queenbee.db.connection import DatabaseManager
+from queenbee.db.models import ChatRepository, MessageRole
 from queenbee.session.manager import SessionManager
 
 console = Console()
@@ -48,6 +53,62 @@ def handle_shutdown(signum, frame) -> None:
     """Handle shutdown signals gracefully."""
     console.print("\n[yellow]Shutting down QueenBee...[/yellow]")
     sys.exit(0)
+
+
+def display_chat_history(chat_repo: ChatRepository, session_id, limit: int = 10) -> None:
+    """Display recent chat history.
+
+    Args:
+        chat_repo: Chat repository.
+        session_id: Session ID.
+        limit: Number of recent messages to show.
+    """
+    messages = chat_repo.get_session_history(session_id, limit=limit)
+    
+    if not messages:
+        return
+    
+    console.print("\n[bold cyan]📜 Recent Chat History:[/bold cyan]")
+    table = Table(show_header=True, header_style="bold magenta", box=None)
+    table.add_column("Role", style="cyan", width=12)
+    table.add_column("Message", style="white")
+    
+    for msg in messages[-limit:]:
+        role = msg["role"].upper()
+        content = msg["content"][:100] + "..." if len(msg["content"]) > 100 else msg["content"]
+        
+        # Color code by role
+        if role == "USER":
+            role_display = f"[bold cyan]{role}[/bold cyan]"
+        elif role == "QUEEN":
+            role_display = f"[bold yellow]🐝 {role}[/bold yellow]"
+        else:
+            role_display = f"[bold green]{role}[/bold green]"
+        
+        table.add_row(role_display, content)
+    
+    console.print(table)
+    console.print()
+
+
+def stream_response(response_iter: Iterator[str]) -> str:
+    """Stream response chunks and display them in real-time.
+
+    Args:
+        response_iter: Iterator of response chunks.
+
+    Returns:
+        Complete response text.
+    """
+    console.print("\n[bold yellow]🐝 Queen[/bold yellow]: ", end="")
+    
+    full_response = []
+    for chunk in response_iter:
+        console.print(chunk, end="")
+        full_response.append(chunk)
+    
+    console.print("\n")
+    return "".join(full_response)
 
 
 def main() -> int:
@@ -104,17 +165,19 @@ def main() -> int:
                 console.print("[red]✗ Failed to create session[/red]")
                 return 1
             
-            # Initialize Queen agent
+            # Initialize Queen agent and chat repository
             queen = QueenAgent(
                 session_id=session_id,
                 config=config,
                 db=db,
             )
+            chat_repo = ChatRepository(db)
 
             # Print banner
             print_banner()
             console.print(f"[green]✓ Session started: {session_id}[/green]")
-            console.print(f"[green]✓ Queen agent ready[/green]\n")
+            console.print(f"[green]✓ Queen agent ready[/green]")
+            console.print(f"[dim]💡 Tip: Type 'history' to see recent messages[/dim]\n")
 
             # Main interaction loop
             while True:
@@ -125,17 +188,38 @@ def main() -> int:
                     if not user_input.strip():
                         continue
 
-                    # Check for exit commands
+                    # Check for special commands
                     if user_input.lower() in ["exit", "quit", "bye"]:
                         console.print("[yellow]Goodbye! 👋[/yellow]")
                         break
+                    
+                    if user_input.lower() in ["history", "hist", "h"]:
+                        display_chat_history(chat_repo, session_id, limit=20)
+                        continue
 
-                    # Process request
+                    # Process request with streaming
                     console.print("[dim]Queen is thinking...[/dim]")
-                    response = queen.process_request(user_input)
+                    response = queen.process_request(user_input, stream=True)
 
-                    # Display response
-                    console.print(f"\n[bold yellow]🐝 Queen[/bold yellow]: {response}\n")
+                    # Handle streaming response
+                    if isinstance(response, str):
+                        # Non-streaming response
+                        console.print(f"\n[bold yellow]🐝 Queen[/bold yellow]: {response}\n")
+                    else:
+                        # Streaming response
+                        full_response = stream_response(response)
+                        
+                        # Log the complete response to chat history
+                        chat_repo.add_message(
+                            session_id=session_id,
+                            agent_id=queen.agent_id,
+                            role=MessageRole.QUEEN,
+                            content=full_response,
+                        )
+
+                    # Show updated chat history indicator
+                    message_count = len(chat_repo.get_session_history(session_id))
+                    console.print(f"[dim]💬 Total messages in session: {message_count} (type 'history' to view)[/dim]\n")
 
                 except KeyboardInterrupt:
                     console.print("\n[yellow]Use 'exit' or 'quit' to close gracefully.[/yellow]")

@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import Iterator, Union
 from uuid import UUID
 
 from queenbee.config.loader import Config
@@ -113,25 +114,25 @@ class BaseAgent:
         """Record agent activity (resets TTL)."""
         self.agent_repo.update_agent_activity(self.agent_id)
 
-    def generate_response(self, prompt: str, temperature: float = 0.7) -> str:
+    def generate_response(self, prompt: str, temperature: float = 0.7, stream: bool = False) -> Union[str, Iterator[str]]:
         """Generate response using Ollama.
 
         Args:
             prompt: User prompt.
             temperature: Sampling temperature.
+            stream: Whether to enable streaming (returns iterator if True).
 
         Returns:
-            Generated response.
+            Generated response (str) or iterator of response chunks (Iterator[str]).
         """
         self.record_activity()
         response = self.ollama.generate(
             prompt=prompt,
             system=self.system_prompt,
             temperature=temperature,
-            stream=False,  # Disable streaming for MVP
+            stream=stream,
         )
-        # Type checker doesn't know stream=False guarantees str return
-        return response if isinstance(response, str) else "".join(response)
+        return response
 
     def terminate(self) -> None:
         """Terminate agent."""

@@ -91,13 +91,15 @@ class BaseAgent:
             return {
                 "complexity_threshold": self.config.agents.queen.complexity_threshold,
             }
-        elif self.agent_type in [AgentType.DIVERGENT, AgentType.CONVERGENT, AgentType.CRITICAL]:
+        elif self.agent_type in [AgentType.DIVERGENT, AgentType.CONVERGENT, AgentType.CRITICAL, AgentType.SUMMARIZER]:
             if self.agent_type == AgentType.DIVERGENT:
                 specialist_config = self.config.agents.divergent
             elif self.agent_type == AgentType.CONVERGENT:
                 specialist_config = self.config.agents.convergent
-            else:
+            elif self.agent_type == AgentType.CRITICAL:
                 specialist_config = self.config.agents.critical
+            else:  # SUMMARIZER
+                specialist_config = self.config.agents.summarizer
 
             return {
                 "max_iterations": specialist_config.max_iterations,

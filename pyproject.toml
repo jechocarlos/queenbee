@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 license = {text = "MIT"}
 authors = [
-    {name = "QueenBee Contributors"}
+    {name = "Jecho Carlos"}
 ]
 keywords = ["agents", "ai", "orchestration", "llm", "ollama"]
 classifiers = [

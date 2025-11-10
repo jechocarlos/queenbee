@@ -14,7 +14,7 @@ database:
 ollama:
   host: ${OLLAMA_HOST:http://localhost:11434}
   model: deepseek-r1:1.5b
-  timeout: 120
+  timeout: 300
 
 agents:
   ttl:
@@ -42,6 +42,7 @@ consensus:
   max_rounds: 10
   agreement_threshold: "all"
   discussion_rounds: 10  # Number of rounds for iterative agent discussion
+  specialist_timeout_seconds: 300  # Maximum wait time for specialists (5 minutes)
 
 logging:
   level: ${LOG_LEVEL:INFO}

@@ -182,8 +182,8 @@ class QueenAgent(BaseAgent):
         logger.info(f"Task {task_id} created, waiting for specialists to process...")
         print("\n🐝 [QueenBee Collaborative Discussion Starting...]\n")
         
-        # Wait for task completion (with timeout)
-        max_wait = 120  # 2 minutes
+        # Wait for task completion (with timeout from config)
+        max_wait = getattr(self.config.consensus, 'specialist_timeout_seconds', 300)  # Default 5 minutes
         start_time = time.time()
         displayed_contributions = 0  # Track what we've already shown
         last_rolling_summary = ""  # Track last displayed rolling summary

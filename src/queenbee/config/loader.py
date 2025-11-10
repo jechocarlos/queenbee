@@ -69,6 +69,7 @@ class ConsensusConfig(BaseSettings):
     max_rounds: int = Field(default=10)
     agreement_threshold: str = Field(default="all")
     discussion_rounds: int = Field(default=3)
+    specialist_timeout_seconds: int = Field(default=300)  # 5 minutes
 
 
 class LoggingConfig(BaseSettings):

@@ -1,11 +1,11 @@
 # QueenBee - Development TODO
 
-**Last Updated**: November 9, 2025  
-**Current Phase**: Phase 1 - Foundation (MVP)
+**Last Updated**: November 10, 2025  
+**Current Phase**: Phase 3 - Polish
 
 ---
 
-## Phase 1: Foundation (MVP)
+## Phase 1: Foundation (MVP) ✅ COMPLETE
 
 ### 1. Project Setup ✅
 - [x] Initialize Python 3.14 project structure
@@ -18,6 +18,7 @@
 - [x] Create `.env.example` template
 - [x] Implement configuration loader (`src/config/loader.py`)
 - [x] Add environment variable validation
+- [x] Add configurable specialist timeout (5 minutes default)
 
 ### 3. Docker Infrastructure ✅
 - [x] Create `docker-compose.local.yml` (PostgreSQL + Ollama)
@@ -38,135 +39,211 @@
   - [x] Add indexes for performance
 - [x] Implement database connection manager (`src/db/connection.py`)
 - [x] Create database models/ORM layer (`src/db/models.py`)
-- [ ] Write migration runner script (`scripts/migrate.py`)
-- [ ] Test database schema creation
+- [x] Create TaskRepository for task queue management
+- [x] Test database schema creation
 
 ### 5. System Prompts ✅
 - [x] Create `prompts/queen.md` - Main orchestrator prompt
 - [x] Create `prompts/divergent.md` - Divergent thinker prompt
-- [x] Create `prompts/convergent.md` - Convergent thinker prompt (for Phase 2, stub for now)
-- [x] Create `prompts/critical.md` - Critical thinker prompt (for Phase 2, stub for now)
-- [ ] Validate prompts with Ollama
+- [x] Create `prompts/convergent.md` - Convergent thinker prompt
+- [x] Create `prompts/critical.md` - Critical thinker prompt
+- [x] Validate prompts with Ollama
+- [x] Add intelligent contribution checking instructions
+- [x] Add conciseness constraints (2-3 sentences)
 
-### 6. Core Agent Framework
-- [ ] Implement base agent class (`src/agents/base.py`)
-  - [ ] Agent initialization with config
-  - [ ] Prompt loading from markdown files
-  - [ ] Connection to Ollama
-  - [ ] Database interaction methods
-  - [ ] Activity tracking (last_activity_at updates)
-- [ ] Implement Queen agent (`src/agents/queen.py`)
-  - [ ] CLI input handling
-  - [ ] Complexity analysis logic
-  - [ ] Simple request direct handling
-  - [ ] Spawn specialist capability (process creation)
-  - [ ] Result aggregation
-- [ ] Implement Divergent agent (`src/agents/divergent.py`)
-  - [ ] Task receiving from Queen
-  - [ ] Private memory management
-  - [ ] Report generation back to Queen
-  - [ ] Knowledge base writing
+### 6. Core Agent Framework ✅
+- [x] Implement base agent class (`src/agents/base.py`)
+  - [x] Agent initialization with config
+  - [x] Prompt loading from markdown files
+  - [x] Connection to Ollama
+  - [x] Database interaction methods
+  - [x] Activity tracking (last_activity_at updates)
+- [x] Implement Queen agent (`src/agents/queen.py`)
+  - [x] CLI input handling
+  - [x] Complexity analysis logic
+  - [x] Simple request direct handling
+  - [x] Task creation and delegation
+  - [x] Real-time contribution display with color coding
+  - [x] Rolling summary display
+  - [x] Final summary display
+  - [x] Streaming support
+- [x] Implement Divergent agent (`src/agents/divergent.py`)
+- [x] Implement Convergent agent (`src/agents/convergent.py`)
+- [x] Implement Critical agent (`src/agents/critical.py`)
 
-### 7. Inter-Process Communication
-- [ ] Design IPC mechanism (message queue, pipes, or database polling)
-- [ ] Implement Queen → Specialist task delegation
-- [ ] Implement Specialist → Queen result reporting
-- [ ] Test process spawning and communication
+### 7. Inter-Process Communication ✅
+- [x] Implement database-backed task queue
+- [x] Implement Queen → Specialist task delegation
+- [x] Implement Specialist → Queen result reporting via database
+- [x] Test process spawning and communication
+- [x] Implement intermediate result storage for real-time display
 
-### 8. Session Management
-- [ ] Implement session creation on startup (`src/session/manager.py`)
-- [ ] Link agents to active session
-- [ ] Terminate old sessions on restart
-- [ ] Session cleanup on shutdown
+### 8. Session Management ✅
+- [x] Implement session creation on startup
+- [x] Link agents to active session
+- [x] Terminate old sessions on restart
+- [x] Session cleanup on shutdown
 
-### 9. CLI Interface
-- [ ] Create main CLI entry point (`src/cli/main.py`)
-- [ ] Implement input loop
-- [ ] Display Queen responses
-- [ ] Show specialist spawn notifications
-- [ ] Handle graceful shutdown (Ctrl+C)
-- [ ] Basic error display
+### 9. CLI Interface ✅
+- [x] Create main CLI entry point (`src/cli/main.py`)
+- [x] Implement input loop
+- [x] Display Queen responses with streaming
+- [x] Show specialist contributions in real-time
+- [x] Color-coded output (🔵 Divergent, 🟢 Convergent, 🔴 Critical)
+- [x] Display rolling summary updates
+- [x] Display final summary in panel
+- [x] Handle graceful shutdown (Ctrl+C)
+- [x] Error display with Rich console
+- [x] `specialists on/off` command
 
-### 10. Testing & Validation
+### 10. Testing & Validation ✅
+- [x] Manual testing with Ollama
+- [x] End-to-end test: Queen handles simple request
+- [x] End-to-end test: Queen spawns specialists for complex request
+- [x] Test async parallel discussion
+- [x] Test rolling summary generation
+- [x] Test final summary generation
 - [ ] Write unit tests for configuration loader
 - [ ] Write unit tests for database models
-- [ ] Write integration test: Queen handles simple request
-- [ ] Write integration test: Queen spawns Divergent for complex request
-- [ ] Write integration test: End-to-end with database persistence
-- [ ] Manual testing with Ollama
+- [ ] Write automated integration tests
 
-### 11. Documentation
-- [ ] Create `/docs/architecture.md` - System architecture overview
-- [ ] Create `/docs/database.md` - Database schema documentation
-- [ ] Create `/docs/getting-started.md` - Quick start guide
-- [ ] Create `/docs/configuration.md` - Config and environment setup
+### 11. Documentation ✅
+- [x] Create `/docs/architecture.md` - System architecture overview
+- [x] Create `/docs/database.md` - Database schema documentation
+- [x] Create `/docs/streaming-and-history.md` - Streaming features
+- [x] Create `/docs/specialist-agents.md` - Specialist system guide
+- [x] Create `/docs/collaborative-discussion.md` - Discussion protocol
 - [x] Update `README.md` with installation and usage
+- [x] Document async parallel discussion architecture
+- [x] Document rolling summary system
 
 ---
 
-## Phase 2: Core Loop (Not Started)
+## Phase 2: Core Loop ✅ COMPLETE
 
-### 1. Additional Specialists
-- [ ] Implement Convergent agent (`src/agents/convergent.py`)
-- [ ] Implement Critical agent (`src/agents/critical.py`)
-- [ ] Test all three specialist types
+### 1. Additional Specialists ✅
+- [x] Implement Convergent agent (`src/agents/convergent.py`)
+- [x] Implement Critical agent (`src/agents/critical.py`)
+- [x] Test all three specialist types
+- [x] Configure specialist-specific temperatures
 
-### 2. Consensus Protocol
-- [ ] Implement mediated communication protocol
-- [ ] Implement consensus checking logic
-- [ ] Handle multi-round Work/Report cycles
-- [ ] Implement max rounds limit and fallback
-- [ ] Test consensus with all three specialists
+### 2. Async Parallel Discussion Protocol ✅
+- [x] Implement background worker process (`src/workers/manager.py`)
+- [x] Implement async agent threads (one per specialist)
+- [x] Implement shared discussion state with thread locking
+- [x] Implement intelligent contribution logic
+  - [x] Analyze existing discussion before contributing
+  - [x] Pass mechanism to avoid repetition
+  - [x] Max 3 contributions per agent
+  - [x] Don't contribute twice in a row
+- [x] Implement agent status tracking (idle/thinking/contributing)
+- [x] Implement stopping logic (all agents idle for 6 seconds)
+- [x] Store intermediate results for real-time display
 
-### 3. TTL & Cleanup
-- [ ] Implement idle timeout checker (background thread/process)
-- [ ] Agent activity tracking
-- [ ] Automatic termination on timeout
-- [ ] Process cleanup
-- [ ] Database cleanup (mark terminated, flush memory)
+### 3. Rolling Summary System ✅
+- [x] Implement rolling summary background thread
+- [x] Generate brief summaries every 4 seconds
+- [x] Store rolling summary in task results
+- [x] Display rolling summary in dim panel
+- [x] Pass rolling summary to final summary generation
 
-### 4. Parallel Execution
-- [ ] Refactor to support multiple concurrent specialist spawns
-- [ ] Implement concurrent spawn limits
-- [ ] Test parallel specialist execution
+### 4. Real-Time Display ✅
+- [x] Implement Queen polling loop (every 2 seconds)
+- [x] Display new contributions immediately
+- [x] Color-code contributions by agent type
+- [x] Display rolling summary when updated
+- [x] Display final summary in yellow panel
+- [x] Rich console integration for formatting
 
-### 5. Enhanced Session Management
-- [ ] Session status tracking
-- [ ] Session history viewing
-- [ ] Session resume capability (stretch goal)
+### 5. Parallel Execution ✅
+- [x] Support multiple concurrent specialist threads
+- [x] Thread-safe shared state management
+- [x] Proper thread cleanup and termination
+- [x] Background worker process management
+
+### 6. Enhanced Session Management ✅
+- [x] Session status tracking in database
+- [x] Task queue for specialist work
+- [x] Worker process lifecycle management
+- [x] Graceful worker shutdown
 
 ---
 
-## Phase 3: Polish (Not Started)
+## Phase 3: Polish (IN PROGRESS)
 
-### 1. Memory Architecture Refinement
-- [ ] Clearly separate shared chat history from private memory
-- [ ] Implement memory visibility controls
-- [ ] Knowledge persistence and retrieval optimization
+### 1. Testing & Quality Assurance
+- [ ] Write unit tests for configuration loader
+- [ ] Write unit tests for database models
+- [ ] Write unit tests for agent base class
+- [ ] Write unit tests for rolling summary logic
+- [ ] Write integration tests for async discussion
+- [ ] Write integration tests for rolling summary generation
+- [ ] Test edge cases (no contributions, single contribution, etc.)
+- [ ] Performance testing with different model sizes
+- [ ] Load testing with multiple concurrent sessions
 
-### 2. Logging & Monitoring
-- [ ] Structured logging (JSON format)
-- [ ] Log levels per component
-- [ ] Performance metrics collection
-- [ ] Agent activity dashboard (CLI or simple UI)
+### 2. Error Handling & Recovery
+- [x] Graceful handling of Ollama connection failures
+- [x] Database connection retry logic
+- [ ] Agent thread crash recovery
+- [ ] Partial result handling when discussion times out
+- [ ] Better error messages for configuration issues
+- [ ] Validation for rolling summary generation failures
 
-### 3. Error Handling & Recovery
-- [ ] Graceful handling of Ollama connection failures
-- [ ] Database connection retry logic
-- [ ] Agent process crash recovery
-- [ ] Partial result handling when consensus fails
+### 3. Performance Optimization
+- [ ] Measure token usage for rolling vs final summaries
+- [ ] Optimize rolling summary update interval
+- [ ] Cache frequently accessed database queries
+- [ ] Optimize thread synchronization overhead
+- [ ] Profile memory usage during long discussions
+- [ ] Consider using cheaper model for rolling summaries
 
-### 4. Configuration Management
-- [ ] Runtime config validation
-- [ ] Config hot-reload capability (stretch)
+### 4. Configuration & Flexibility
+- [x] Configurable specialist timeout (specialist_timeout_seconds)
+- [x] Configurable discussion rounds (discussion_rounds)
+- [ ] Configurable rolling summary update interval
+- [ ] Configurable contribution limits per agent
+- [ ] Configurable idle detection threshold
+- [ ] Runtime config validation improvements
 - [ ] Multiple environment support (dev/staging/prod)
 
-### 5. Documentation & Examples
-- [ ] Create example use cases
-- [ ] Video/GIF demos
-- [ ] Troubleshooting guide
+### 5. Logging & Monitoring
+- [x] Basic structured logging
+- [ ] Enhanced performance metrics collection
+- [ ] Agent activity dashboard (CLI stats command)
+- [ ] Token usage tracking and reporting
+- [ ] Discussion duration statistics
+- [ ] Contribution distribution analytics
+- [ ] Rolling summary effectiveness metrics
+
+### 6. Documentation & Examples
+- [x] Architecture documentation updated
+- [x] Collaborative discussion documentation
+- [x] Rolling summary system documentation
+- [ ] Create example use cases with real queries
+- [ ] Create troubleshooting guide
 - [ ] Performance tuning guide
+- [ ] Video/GIF demos of async discussion
 - [ ] API reference documentation
+- [ ] Contributing guidelines
+
+### 7. User Experience Enhancements
+- [ ] Add progress indicator during initial agent thinking
+- [ ] Show estimated time remaining for discussion
+- [ ] Add command to view discussion history
+- [ ] Add command to export discussion to file
+- [ ] Improve error messages for common issues
+- [ ] Add help command with examples
+- [ ] Add stats command to show session statistics
+
+### 8. Code Quality & Maintenance
+- [ ] Add type hints to remaining functions
+- [ ] Add docstrings to all public methods
+- [ ] Code coverage analysis (aim for >80%)
+- [ ] Linting and code formatting (black, ruff)
+- [ ] Pre-commit hooks setup
+- [ ] CI/CD pipeline setup
+- [ ] Dependency security scanning
 
 ---
 
@@ -185,19 +262,49 @@
 
 ---
 
-## Current Sprint - Finalize MVP
+## Current Sprint - Phase 3 Polish
 
-### Immediate Tasks
-- [ ] Test end-to-end flow manually
-- [ ] Fix any deployment issues
-- [ ] Write basic unit tests for key components
-- [ ] Create simple test script
+### Immediate Priorities
+- [ ] End-to-end testing with complex real-world queries
+- [ ] Performance measurement (token usage, timing analysis)
+- [ ] Write core unit tests for critical components
+- [ ] Optimize rolling summary generation cost
+- [ ] Add stats command to CLI
 
-### Phase 2 Preparation
-- [ ] Design IPC for specialist spawning (database-based task queue)
-- [ ] Implement Divergent agent worker process
-- [ ] Implement Queen → Specialist delegation
-- [ ] Implement Specialist → Queen reporting
+### Near-Term Goals
+- [ ] Comprehensive error handling
+- [ ] Performance optimization based on metrics
+- [ ] Enhanced logging and monitoring
+- [ ] User experience improvements
+- [ ] Documentation completion
+
+### Known Issues / Tech Debt
+- [ ] No automated tests yet (all manual)
+- [ ] Rolling summary may be token-expensive
+- [ ] No retry logic for failed LLM calls
+- [ ] Limited error context in user-facing messages
+- [ ] No way to view previous discussions after session ends
+
+---
+
+## Completed Features Summary
+
+### ✅ Phase 1 & 2 Achievements
+- **Async Parallel Discussion**: Specialists work in independent threads, contribute when they have value
+- **Real-Time Display**: Contributions shown immediately with color coding (🔵🟢🔴)
+- **Rolling Summary System**: Live 2-3 sentence summaries every 4 seconds during discussion
+- **Intelligent Contributions**: Agents analyze existing discussion to avoid repetition
+- **Configurable Timeouts**: 5-minute default, adjustable via config
+- **Final Summary Integration**: Builds upon rolling summary insights for coherent synthesis
+- **Rich Console UI**: Professional formatting with panels and color-coded output
+- **Task Queue System**: Database-backed async job processing
+- **Worker Process Management**: Background workers handle specialist execution
+- **Streaming Support**: Queen responses can stream in real-time
+- **Session Management**: Proper lifecycle for agents and sessions
+- **Complexity Detection**: Automatic routing to specialists for complex queries
+
+### 🎯 Next Milestone: Production Readiness
+Goal: Make QueenBee robust, tested, and optimized for real-world use
 - [ ] Test multi-agent collaboration
 
 ---

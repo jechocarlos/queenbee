@@ -310,13 +310,13 @@ This is an ongoing discussion - focus on synthesis, not conclusion."""
         # Wait for summary thread
         summary_thread.join(timeout=3)
         
-        # Generate final comprehensive summary from Queen
-        logger.info("Generating Queen's final summary...")
-        final_summary = self._generate_queen_summary(user_input, discussion)
-        
         # Get the last rolling summary
         with discussion_lock:
             last_rolling = rolling_summary["content"]
+        
+        # Generate final comprehensive summary from Queen using the rolling summary
+        logger.info("Generating Queen's final summary...")
+        final_summary = self._generate_queen_summary(user_input, discussion, last_rolling)
         
         return {
             "task": user_input,
@@ -327,12 +327,13 @@ This is an ongoing discussion - focus on synthesis, not conclusion."""
             "summary": final_summary  # Final comprehensive summary
         }
 
-    def _generate_queen_summary(self, user_input: str, discussion: list[dict]) -> str:
+    def _generate_queen_summary(self, user_input: str, discussion: list[dict], rolling_summary: str = "") -> str:
         """Generate Queen's final summary of the discussion.
         
         Args:
             user_input: Original question.
             discussion: Full discussion history.
+            rolling_summary: The last rolling summary generated during discussion.
             
         Returns:
             Queen's summary.
@@ -355,16 +356,26 @@ This is an ongoing discussion - focus on synthesis, not conclusion."""
         with self.db:
             queen = QueenAgent(self.session_id, self.config, self.db)
             
+            # Include rolling summary if available
+            rolling_context = ""
+            if rolling_summary:
+                rolling_context = f"""
+ROLLING SUMMARY (generated during discussion):
+{rolling_summary}
+
+"""
+            
             summary_prompt = f"""The specialist team had the following discussion about: "{user_input}"
 
-FULL DISCUSSION:
+{rolling_context}FULL DISCUSSION:
 {discussion_str}
 
 As the Queen orchestrator, provide a clear, actionable summary that:
-1. Synthesizes the key insights from all perspectives
-2. Presents the most important recommendations
-3. Highlights any critical concerns or trade-offs
-4. Gives a direct answer to the original question
+1. Builds upon the rolling summary insights (if provided)
+2. Synthesizes the key insights from all perspectives
+3. Presents the most important recommendations
+4. Highlights any critical concerns or trade-offs
+5. Gives a direct answer to the original question
 
 KEEP IT CONCISE: Maximum 4-5 sentences. Be clear and actionable."""
 

@@ -1,8 +1,8 @@
 # QueenBee - Agent Spawning System Specification
 
-**Version:** 1.0  
-**Date:** November 9, 2025  
-**Status:** Draft - Awaiting Approval
+**Version:** 2.0  
+**Date:** November 10, 2025  
+**Status:** Implemented - Phase 2 Complete
 
 ---
 
@@ -124,27 +124,50 @@ User Request → Queen Agent
 - Design/architecture decisions
 - Problems requiring multiple perspectives
 
-### 4.3 Specialist Collaboration Protocol
+### 4.3 Specialist Collaboration Protocol (Async Parallel Discussion)
 
-1. **Spawn Phase**: Queen creates 3 specialists (Divergent, Convergent, Critical)
-2. **Work Phase**: 
-   - Each specialist works in private memory space
-   - Queen provides task context to each
-3. **Report Phase**:
-   - Specialists report findings to Queen individually
-   - Queen shares relevant findings between specialists
-4. **Consensus Phase**:
-   - Queen asks each specialist if they have more to contribute
-   - Repeat Work/Report cycle until all agree completion
-5. **Aggregation Phase**:
-   - Queen synthesizes final output
-   - Results published to shared chat history
+**Current Implementation**: Agents work in parallel threads with intelligent contribution logic
+
+1. **Spawn Phase**: Queen creates task and starts background worker with 3 specialists
+2. **Async Work Phase**: 
+   - Each specialist runs in independent thread (Divergent, Convergent, Critical)
+   - Agents continuously monitor shared discussion state
+   - Each agent decides independently when to contribute based on:
+     - Discussion history analysis
+     - Detection of new value they can add
+     - Maximum 3 contributions per agent
+     - Must not contribute twice in a row
+3. **Real-time Display**:
+   - Queen polls task result every 2 seconds
+   - New contributions displayed immediately with color coding
+   - Rolling summary updates shown every 4 seconds during discussion
+4. **Stopping Logic**:
+   - Monitor checks agent statuses every 1 second
+   - Discussion stops when ALL agents idle for 6 consecutive seconds
+   - Maximum timeout: 300 seconds (5 minutes, configurable)
+5. **Summary Phase**:
+   - Rolling summary thread generates brief 2-3 sentence updates during discussion
+   - Final comprehensive summary generated at end (4-5 sentences)
+   - Final summary builds upon rolling summary insights
+
+**Key Features**:
+- **Intelligent Contribution**: Agents analyze what's already been said before responding
+- **No Forced Rounds**: Agents contribute whenever they have new value to add
+- **Pass Mechanism**: Agents can respond with [PASS] if they'd just repeat existing points
+- **Concise Responses**: Maximum 2-3 sentences per contribution
+- **Live Context**: Rolling summary provides real-time understanding of discussion progress
 
 ### 4.4 Communication Model
 - **User ↔ Queen**: Visible in terminal (shared chat history)
-- **Queen ↔ Specialists**: Behind-the-scenes mediation
-- **Specialist ↔ Specialist**: Through Queen only (no peer-to-peer)
-- **Specialist → User**: Via Queen's aggregated reports only
+- **Queen → User**: Real-time display of specialist contributions with color coding
+  - 🔵 Blue: Divergent contributions
+  - 🟢 Green: Convergent contributions
+  - 🔴 Red: Critical contributions
+- **Queen → User**: Live rolling summary updates (dim gray panel, every ~4 seconds)
+- **Queen → User**: Final comprehensive summary (yellow panel, at completion)
+- **Queen ↔ Specialists**: Via database-backed task queue
+- **Specialist ↔ Specialist**: Through shared discussion state (read-only for others' contributions)
+- **Specialist → User**: Real-time as contributions are made (not aggregated)
 
 ---
 
@@ -282,38 +305,66 @@ User Request → Queen Agent
 ```
 $ queenbee
 
-QueenBee v1.0 - Agent Orchestration System
+QueenBee v2.0 - Agent Orchestration System
 [Queen] Ready. How can I help?
 
-> Analyze the trade-offs of microservices vs monolith architecture
+> How to design a scalable multi-agent system with knowledge graphs?
 
-[Queen] This is a complex multi-perspective question. Spawning specialists...
-[Queen] ✓ Divergent spawned
-[Queen] ✓ Convergent spawned  
-[Queen] ✓ Critical spawned
-[Queen] Coordinating analysis...
+🐝 [QueenBee Collaborative Discussion Starting...]
 
-[Working in background...]
+🔵 Divergent #1
+Consider using LangGraph for workflow orchestration and Neo4j for knowledge persistence. This enables both agent coordination and shared memory across the ecosystem.
+────────────────────────────────────────────────────────────
 
-[Queen] Analysis complete. Here's what the team found:
+🟢 Convergent #1
+Building on that, prioritize LangGraph for the agent layer with a hybrid approach: simple coordination via LangGraph state management, complex knowledge via graph database when coordination isn't sufficient.
+────────────────────────────────────────────────────────────
 
-[Summary of findings from all three specialists]
+🔴 Critical #1
+Be cautious of over-engineering. Start with LangGraph's built-in memory, only add Neo4j if you hit scalability limits. The integration overhead may outweigh benefits for smaller systems.
+────────────────────────────────────────────────────────────
+
+┌─ 💭 Rolling Summary ─────────────────────────────────────┐
+│ The team is exploring LangGraph for agent coordination    │
+│ with a cautious approach to adding knowledge graphs. Key  │
+│ insight: start simple, scale complexity only when needed. │
+└──────────────────────────────────────────────────────────┘
+
+[More contributions as discussion continues...]
+
+✨ Discussion complete!
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃              🐝 QUEEN'S SUMMARY                           ┃
+┃                                                           ┃
+┃  Use LangGraph as your primary framework for agent       ┃
+┃  coordination and state management. Add a knowledge      ┃
+┃  graph (Neo4j) only when LangGraph's built-in memory     ┃
+┃  proves insufficient for complex cross-agent queries.    ┃
+┃  Start simple to avoid premature optimization.           ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+Discussion complete with 8 contributions from the specialist team.
 
 > 
 ```
 
 ### 7.2 Visibility Rules
 **User Sees**:
-- Queen's direct responses
-- Spawn status notifications (spawned, working, complete)
-- Aggregated specialist findings
+- Queen's direct responses (for simple queries)
+- Spawn status notification when discussion starts
+- Real-time specialist contributions with color coding (🔵🟢🔴)
+- Live rolling summary updates (dim panel, every ~4 seconds)
+- Final comprehensive summary (yellow panel, at completion)
+- Discussion completion status with contribution count
 - Error messages
 
 **User Does NOT See**:
-- Individual specialist reasoning
-- Inter-agent communication
-- Database operations
-- Private memory contents
+- Individual specialist internal reasoning processes
+- Agent status updates (idle/thinking/contributing - logged only)
+- Database operations and task queue management
+- Thread management and synchronization
+- Rolling summary generation prompts
 
 ---
 
@@ -366,6 +417,8 @@ agents:
 consensus:
   max_rounds: 10
   agreement_threshold: "all" # all specialists must agree
+  discussion_rounds: 10  # Max iterations for discussion monitor loop
+  specialist_timeout_seconds: 300  # Maximum wait time (5 minutes)
 ```
 
 ### 8.2 Environment Variables
@@ -574,18 +627,29 @@ docker-compose -f docker-compose.remote.yml up -d
 
 ## Approval
 
-- [ ] System architecture approved
-- [ ] Database schema approved
-- [ ] Agent types and behaviors approved
-- [ ] Development phases approved
-- [ ] Risk mitigation strategies approved
+- [x] System architecture approved
+- [x] Database schema approved
+- [x] Agent types and behaviors approved
+- [x] Development phases approved
+- [x] Risk mitigation strategies approved
+- [x] Phase 1 (Foundation) - Complete
+- [x] Phase 2 (Core Loop) - Complete
+- [ ] Phase 3 (Polish) - In Progress
 
-**Approved By**: _________________________  
-**Date**: _________________________
+**Approved By**: Development Team  
+**Date**: November 10, 2025
 
 ---
 
 **Document Control**:
 - **Created**: November 9, 2025
-- **Last Modified**: November 9, 2025
-- **Next Review**: After Phase 1 completion
+- **Last Modified**: November 10, 2025
+- **Next Review**: After Phase 3 completion
+
+**Major Changes in v2.0**:
+- Implemented async parallel discussion architecture
+- Added real-time contribution display with color coding
+- Implemented rolling summary system (live updates every 4 seconds)
+- Made specialist timeout configurable (default 5 minutes)
+- Enhanced final summary to build upon rolling summary insights
+- Replaced sequential rounds with intelligent contribution logic

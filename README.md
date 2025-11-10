@@ -2,8 +2,8 @@
 
 **Meta-Agent Orchestration System with Specialized Thinking Agents**
 
-![Tests](https://img.shields.io/badge/tests-87%20passed%2C%202%20skipped-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-42%25-yellow)
+![Tests](https://img.shields.io/badge/tests-119%20passed%2C%202%20skipped-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-52%25-yellow)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 

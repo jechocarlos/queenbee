@@ -2,6 +2,11 @@
 
 **Meta-Agent Orchestration System with Specialized Thinking Agents**
 
+![Tests](https://img.shields.io/badge/tests-47%20passed%2C%202%20skipped-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-30%25-yellow)
+![Python](https://img.shields.io/badge/python-3.14-blue)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 QueenBee is an intelligent agent orchestration system that dynamically spawns specialized thinking agents to tackle complex problems through divergent exploration, convergent synthesis, and critical analysis.
 
 ## ✨ Key Features

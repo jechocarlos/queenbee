@@ -68,6 +68,7 @@ class ConsensusConfig(BaseSettings):
 
     max_rounds: int = Field(default=10)
     agreement_threshold: str = Field(default="all")
+    discussion_rounds: int = Field(default=3)
 
 
 class LoggingConfig(BaseSettings):

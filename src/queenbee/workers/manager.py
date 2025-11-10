@@ -33,7 +33,7 @@ class SpecialistWorker:
         self.task_repo = TaskRepository(self.db)
 
     def process_task(self, task: dict[str, Any]) -> None:
-        """Process a single task.
+        """Process a single task with iterative multi-agent collaboration.
 
         Args:
             task: Task data from database.
@@ -48,80 +48,285 @@ class SpecialistWorker:
             # Update status to in_progress
             self.task_repo.update_task_status(task_id, TaskStatus.IN_PROGRESS)
 
-            # Parse task description (should be JSON with task type and data)
+            # Parse task description
             try:
                 task_data = json.loads(description)
-                task_type = task_data.get("type", "explore")
                 user_input = task_data.get("input", "")
                 context = task_data.get("context", "")
+                max_rounds = task_data.get("max_rounds", 3)  # Default 3 rounds of discussion
             except json.JSONDecodeError:
-                # Fallback: treat entire description as input
-                task_type = "explore"
                 user_input = description
                 context = ""
+                max_rounds = 3
 
-            # Execute task based on assigned agents
-            results = {}
-
-            # Check which agents are assigned
-            has_divergent = any(str(agent_id) in str(assigned_to) for agent_id in assigned_to)
-            has_convergent = any(str(agent_id) in str(assigned_to) for agent_id in assigned_to)
-            has_critical = any(str(agent_id) in str(assigned_to) for agent_id in assigned_to)
-
-            with self.db:
-                # Phase 1: Divergent exploration
-                perspectives = []
-                if has_divergent or task_type == "explore":
-                    divergent = DivergentAgent(self.session_id, self.config, self.db)
-                    perspectives = divergent.explore(user_input, context)
-                    results["divergent"] = {
-                        "perspectives": perspectives,
-                        "agent_id": str(divergent.agent_id)
-                    }
-                    divergent.terminate()
-
-                # Phase 2: Convergent synthesis
-                synthesis = None
-                if has_convergent or task_type == "synthesize":
-                    if not perspectives:
-                        # If no divergent phase, use input directly
-                        perspectives = [user_input]
-                    
-                    convergent = ConvergentAgent(self.session_id, self.config, self.db)
-                    synthesis_result = convergent.synthesize(user_input, perspectives, context)
-                    synthesis = synthesis_result["synthesis"]
-                    results["convergent"] = {
-                        "synthesis": synthesis,
-                        "agent_id": str(convergent.agent_id)
-                    }
-                    convergent.terminate()
-
-                # Phase 3: Critical validation
-                if has_critical or task_type == "validate":
-                    if not synthesis:
-                        # If no convergent phase, use perspectives or input
-                        synthesis = "\n".join(perspectives) if perspectives else user_input
-                    
-                    critical = CriticalAgent(self.session_id, self.config, self.db)
-                    validation_result = critical.validate(user_input, synthesis, context)
-                    results["critical"] = {
-                        "validation": validation_result["validation"],
-                        "agent_id": str(critical.agent_id)
-                    }
-                    critical.terminate()
+            # Run iterative collaborative discussion
+            results = self._run_collaborative_discussion(user_input, context, max_rounds)
 
             # Store results
             result_json = json.dumps(results, indent=2)
             self.task_repo.set_task_result(task_id, result_json)
             self.task_repo.update_task_status(task_id, TaskStatus.COMPLETED)
 
-            logger.info(f"Task {task_id} completed successfully")
+            logger.info(f"Task {task_id} completed successfully after {len(results.get('rounds', []))} rounds")
 
         except Exception as e:
             logger.error(f"Task {task_id} failed: {e}", exc_info=True)
             self.task_repo.update_task_status(task_id, TaskStatus.FAILED)
             error_result = json.dumps({"error": str(e)})
             self.task_repo.set_task_result(task_id, error_result)
+
+    def _run_collaborative_discussion(self, user_input: str, context: str, max_rounds: int) -> dict[str, Any]:
+        """Run iterative discussion between specialist agents.
+
+        Each agent can respond to what others have said, building on the conversation.
+
+        Args:
+            user_input: Original user question.
+            context: Conversation context.
+            max_rounds: Maximum discussion rounds.
+
+        Returns:
+            Dictionary with all rounds of discussion.
+        """
+        logger.info(f"Starting collaborative discussion (max {max_rounds} rounds)")
+
+        # Initialize shared discussion transcript
+        discussion = []
+        
+        with self.db:
+            # Create agents once and reuse them
+            divergent = DivergentAgent(self.session_id, self.config, self.db)
+            convergent = ConvergentAgent(self.session_id, self.config, self.db)
+            critical = CriticalAgent(self.session_id, self.config, self.db)
+
+            agents = [
+                {"name": "Divergent", "agent": divergent, "role": "explorer"},
+                {"name": "Convergent", "agent": convergent, "role": "synthesizer"},
+                {"name": "Critical", "agent": critical, "role": "validator"}
+            ]
+
+            rounds = []
+
+            for round_num in range(1, max_rounds + 1):
+                logger.info(f"Round {round_num}/{max_rounds}")
+                round_responses = []
+
+                # Each agent gets a chance to speak
+                for agent_info in agents:
+                    agent_name = agent_info["name"]
+                    agent = agent_info["agent"]
+                    
+                    # Build prompt with discussion history
+                    response = self._get_agent_response(
+                        agent_name=agent_name,
+                        agent=agent,
+                        user_input=user_input,
+                        discussion=discussion,
+                        round_num=round_num,
+                        context=context
+                    )
+
+                    if response:  # Agent chose to respond
+                        contribution = {
+                            "agent": agent_name,
+                            "round": round_num,
+                            "content": response,
+                            "timestamp": time.time()
+                        }
+                        
+                        discussion.append(contribution)
+                        round_responses.append(contribution)
+                        logger.info(f"{agent_name} contributed in round {round_num}")
+                    else:
+                        logger.info(f"{agent_name} passed on round {round_num}")
+
+                rounds.append({
+                    "round": round_num,
+                    "responses": round_responses
+                })
+
+                # Check if we should continue (did anyone speak this round?)
+                if not round_responses:
+                    logger.info(f"No responses in round {round_num}, ending discussion")
+                    break
+
+            # Cleanup agents
+            divergent.terminate()
+            convergent.terminate()
+            critical.terminate()
+
+            return {
+                "task": user_input,
+                "context": context,
+                "rounds": rounds,
+                "total_contributions": len(discussion),
+                "full_discussion": discussion
+            }
+
+    def _get_agent_response(
+        self, 
+        agent_name: str, 
+        agent: Any, 
+        user_input: str, 
+        discussion: list[dict], 
+        round_num: int,
+        context: str
+    ) -> str | None:
+        """Get response from a specific agent based on discussion so far.
+
+        Args:
+            agent_name: Name of the agent.
+            agent: Agent instance.
+            user_input: Original question.
+            discussion: List of previous contributions.
+            round_num: Current round number.
+            context: Additional context.
+
+        Returns:
+            Agent's response or None if agent chooses to pass.
+        """
+        # Format discussion history
+        discussion_text = self._format_discussion(discussion)
+
+        # Build agent-specific prompt
+        if agent_name == "Divergent":
+            prompt = self._build_divergent_prompt(user_input, discussion_text, round_num, context)
+        elif agent_name == "Convergent":
+            prompt = self._build_convergent_prompt(user_input, discussion_text, round_num, context)
+        elif agent_name == "Critical":
+            prompt = self._build_critical_prompt(user_input, discussion_text, round_num, context)
+        else:
+            return None
+
+        # Get response
+        try:
+            response = agent.generate_response(prompt, stream=False, temperature=0.7)
+            response_text = str(response)
+
+            # Check if agent wants to pass (indicated by special markers)
+            if any(marker in response_text.lower() for marker in ["[pass]", "[no response]", "i have nothing to add"]):
+                return None
+
+            return response_text
+        except Exception as e:
+            logger.error(f"Error getting response from {agent_name}: {e}")
+            return None
+
+    def _format_discussion(self, discussion: list[dict]) -> str:
+        """Format discussion history for agent consumption.
+
+        Args:
+            discussion: List of contributions.
+
+        Returns:
+            Formatted discussion string.
+        """
+        if not discussion:
+            return "No prior discussion yet."
+
+        lines = ["Previous discussion:"]
+        for contrib in discussion:
+            agent = contrib["agent"]
+            content = contrib["content"]
+            round_num = contrib["round"]
+            lines.append(f"\n[Round {round_num}] {agent}: {content}")
+
+        return "\n".join(lines)
+
+    def _build_divergent_prompt(self, task: str, discussion: str, round_num: int, context: str) -> str:
+        """Build prompt for Divergent agent.
+
+        Args:
+            task: Original task.
+            discussion: Discussion so far.
+            round_num: Current round.
+            context: Additional context.
+
+        Returns:
+            Formatted prompt.
+        """
+        return f"""Original Question: {task}
+
+{f'Context: {context}' if context else ''}
+
+{discussion}
+
+You are the Divergent thinker (Round {round_num}). Your role is to explore different perspectives and possibilities.
+
+Instructions:
+- If this is your first contribution, brainstorm 2-3 diverse perspectives or approaches
+- If others have already spoken, you can:
+  * Add NEW perspectives they haven't covered
+  * Challenge assumptions made by other agents
+  * Suggest alternative angles to consider
+- If you feel everything important has been explored, respond with "[PASS]" to skip your turn
+- Keep your response focused and concise (2-3 paragraphs)
+
+Your response:"""
+
+    def _build_convergent_prompt(self, task: str, discussion: str, round_num: int, context: str) -> str:
+        """Build prompt for Convergent agent.
+
+        Args:
+            task: Original task.
+            discussion: Discussion so far.
+            round_num: Current round.
+            context: Additional context.
+
+        Returns:
+            Formatted prompt.
+        """
+        return f"""Original Question: {task}
+
+{f'Context: {context}' if context else ''}
+
+{discussion}
+
+You are the Convergent thinker (Round {round_num}). Your role is to synthesize insights and narrow down to actionable recommendations.
+
+Instructions:
+- If this is your first contribution, synthesize the perspectives mentioned so far
+- If others have already spoken, you can:
+  * Refine your synthesis based on new information
+  * Prioritize or rank the options discussed
+  * Identify common patterns or themes
+  * Provide clearer recommendations
+- If you have nothing new to add, respond with "[PASS]" to skip your turn
+- Keep your response focused and concise (2-3 paragraphs)
+
+Your response:"""
+
+    def _build_critical_prompt(self, task: str, discussion: str, round_num: int, context: str) -> str:
+        """Build prompt for Critical agent.
+
+        Args:
+            task: Original task.
+            discussion: Discussion so far.
+            round_num: Current round.
+            context: Additional context.
+
+        Returns:
+            Formatted prompt.
+        """
+        return f"""Original Question: {task}
+
+{f'Context: {context}' if context else ''}
+
+{discussion}
+
+You are the Critical thinker (Round {round_num}). Your role is to validate ideas and identify potential issues.
+
+Instructions:
+- If this is your first contribution, identify risks, concerns, or flaws in the discussion
+- If others have already spoken, you can:
+  * Point out NEW issues or edge cases not yet mentioned
+  * Validate solutions proposed by other agents
+  * Challenge assumptions or logical inconsistencies
+  * Suggest safeguards or improvements
+- If all concerns have been addressed, respond with "[PASS]" to skip your turn
+- Keep your response focused and concise (2-3 paragraphs)
+
+Your response:"""
 
     def run(self) -> None:
         """Run worker loop to process pending tasks."""

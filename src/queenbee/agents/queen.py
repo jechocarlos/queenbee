@@ -155,11 +155,14 @@ class QueenAgent(BaseAgent):
             else:
                 return placeholder_response + str(direct_response)
         
-        # Create task for specialists
+        # Create task for specialists with iterative discussion
+        max_rounds = getattr(self.config.consensus, 'discussion_rounds', 3)
+        
         task_data = {
-            "type": "full_analysis",  # Divergent -> Convergent -> Critical
+            "type": "collaborative_discussion",
             "input": user_input,
-            "context": self._get_conversation_context()
+            "context": self._get_conversation_context(),
+            "max_rounds": max_rounds  # From config
         }
         
         task_description = json.dumps(task_data)
@@ -177,10 +180,12 @@ class QueenAgent(BaseAgent):
         )
         
         logger.info(f"Task {task_id} created, waiting for specialists to process...")
+        print("⏳ Specialists are collaborating (this may take 30-60 seconds)...")
         
         # Wait for task completion (with timeout)
         max_wait = 120  # 2 minutes
         start_time = time.time()
+        dots = 0
         
         while time.time() - start_time < max_wait:
             task = self.task_repo.get_task(task_id)
@@ -190,6 +195,7 @@ class QueenAgent(BaseAgent):
                 break
             
             if task["status"] == TaskStatus.COMPLETED.value:
+                print("\r✓ Specialists finished!                    ")  # Clear progress indicator
                 logger.info(f"Task {task_id} completed")
                 result = task["result"]
                 
@@ -218,6 +224,11 @@ class QueenAgent(BaseAgent):
             elif task["status"] == TaskStatus.FAILED.value:
                 logger.error(f"Task {task_id} failed")
                 return "Error: Specialist agents encountered an error processing your request."
+            
+            # Show progress indicator
+            dots = (dots + 1) % 4
+            status_msg = f"\r⏳ Specialists working{'.' * dots}{' ' * (3 - dots)}"
+            print(status_msg, end='', flush=True)
             
             # Wait a bit before checking again
             time.sleep(2)
@@ -254,6 +265,75 @@ class QueenAgent(BaseAgent):
         Args:
             results: Dictionary with results from each specialist.
             original_task: Original user request.
+
+        Returns:
+            Formatted response.
+        """
+        # Check if we have iterative discussion results
+        if "rounds" in results and "full_discussion" in results:
+            return self._format_discussion_results(results, original_task)
+        
+        # Fallback to old format for backwards compatibility
+        return self._format_legacy_results(results, original_task)
+
+    def _format_discussion_results(self, results: dict, original_task: str) -> str:
+        """Format iterative discussion results.
+
+        Args:
+            results: Discussion results with rounds.
+            original_task: Original question.
+
+        Returns:
+            Formatted collaborative discussion.
+        """
+        response_parts = [
+            "🐝 [QueenBee Collaborative Discussion]\n",
+            f"My specialist team had a {len(results['rounds'])}-round discussion about:\n",
+            f"'{original_task[:100]}{'...' if len(original_task) > 100 else ''}'\n"
+        ]
+
+        # Format each round
+        for round_data in results["rounds"]:
+            round_num = round_data["round"]
+            responses = round_data["responses"]
+            
+            if responses:
+                response_parts.append(f"\n{'='*60}")
+                response_parts.append(f"Round {round_num}: {len(responses)} contribution(s)")
+                response_parts.append('='*60)
+                
+                for contrib in responses:
+                    agent = contrib["agent"]
+                    content = contrib["content"]
+                    
+                    # Color code by agent
+                    if agent == "Divergent":
+                        icon = "🔵"
+                    elif agent == "Convergent":
+                        icon = "🟢"
+                    elif agent == "Critical":
+                        icon = "🔴"
+                    else:
+                        icon = "⚪"
+                    
+                    response_parts.append(f"\n{icon} {agent}:")
+                    response_parts.append(content)
+
+        # Summary
+        total_contributions = results.get("total_contributions", 0)
+        response_parts.append(f"\n\n{'='*60}")
+        response_parts.append(f"✨ Discussion complete with {total_contributions} total contributions")
+        response_parts.append("This represents a truly collaborative multi-perspective analysis.")
+        response_parts.append('='*60)
+
+        return "\n".join(response_parts)
+
+    def _format_legacy_results(self, results: dict, original_task: str) -> str:
+        """Format legacy (non-discussion) results.
+
+        Args:
+            results: Old-format results.
+            original_task: Original question.
 
         Returns:
             Formatted response.

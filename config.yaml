@@ -42,6 +42,7 @@ agents:
 consensus:
   max_rounds: 10
   agreement_threshold: "all"
+  discussion_rounds: 3  # Number of rounds for iterative agent discussion
 
 logging:
   level: ${LOG_LEVEL:INFO}

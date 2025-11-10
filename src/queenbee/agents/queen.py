@@ -180,12 +180,12 @@ class QueenAgent(BaseAgent):
         )
         
         logger.info(f"Task {task_id} created, waiting for specialists to process...")
-        print("⏳ Specialists are collaborating (this may take 30-60 seconds)...")
+        print("\n🐝 [QueenBee Collaborative Discussion Starting...]\n")
         
         # Wait for task completion (with timeout)
         max_wait = 120  # 2 minutes
         start_time = time.time()
-        dots = 0
+        displayed_contributions = 0  # Track what we've already shown
         
         while time.time() - start_time < max_wait:
             task = self.task_repo.get_task(task_id)
@@ -194,29 +194,111 @@ class QueenAgent(BaseAgent):
                 logger.error(f"Task {task_id} not found")
                 break
             
+            # Check for intermediate results and display new contributions
+            result = task.get("result")
+            if result:
+                try:
+                    current_results = json.loads(result)
+                    
+                    # If in progress, show new contributions
+                    if current_results.get("status") == "in_progress":
+                        contributions = current_results.get("contributions", [])
+                        
+                        # Display any new contributions with color coding
+                        for contrib in contributions[displayed_contributions:]:
+                            agent = contrib["agent"]
+                            contrib_num = contrib.get("contribution_num", "")
+                            content = contrib["content"]
+                            
+                            # Color code by agent with rich console colors
+                            if agent == "Divergent":
+                                icon = "🔵"
+                                color = "bright_blue"
+                                agent_label = f"[{color}]{agent}{contrib_label if (contrib_label := f' #{contrib_num}' if contrib_num else '') else ''}[/{color}]"
+                            elif agent == "Convergent":
+                                icon = "🟢"
+                                color = "bright_green"
+                                agent_label = f"[{color}]{agent}{contrib_label if (contrib_label := f' #{contrib_num}' if contrib_num else '') else ''}[/{color}]"
+                            elif agent == "Critical":
+                                icon = "🔴"
+                                color = "bright_red"
+                                agent_label = f"[{color}]{agent}{contrib_label if (contrib_label := f' #{contrib_num}' if contrib_num else '') else ''}[/{color}]"
+                            else:
+                                icon = "⚪"
+                                color = "white"
+                                agent_label = f"{agent}{contrib_label if (contrib_label := f' #{contrib_num}' if contrib_num else '') else ''}"
+                            
+                            # Print with color using rich console
+                            from rich.console import Console
+                            console = Console()
+                            console.print(f"\n{icon} {agent_label}")
+                            console.print(f"[{color}]{content}[/{color}]")
+                            console.print(f"[dim]{'─' * 60}[/dim]\n")
+                        
+                        displayed_contributions = len(contributions)
+                except json.JSONDecodeError:
+                    pass  # Wait for valid JSON
+            
             if task["status"] == TaskStatus.COMPLETED.value:
-                print("\r✓ Specialists finished!                    ")  # Clear progress indicator
+                print("✨ Discussion complete!\n")
                 logger.info(f"Task {task_id} completed")
                 result = task["result"]
                 
                 if result:
                     try:
                         results = json.loads(result)
-                        # Format the collaborative response
-                        response = self._format_specialist_results(results, user_input)
                         
-                        if stream:
-                            # For streaming, yield the formatted response chunk by chunk
-                            def response_generator():
-                                chunk_size = 10  # words per chunk
-                                words = response.split()
-                                for i in range(0, len(words), chunk_size):
-                                    chunk = " ".join(words[i:i+chunk_size])
-                                    yield chunk + " "
-                                    time.sleep(0.05)  # Simulate streaming delay
-                            return response_generator()
-                        else:
-                            return response
+                        # Check if there are any new contributions we haven't displayed
+                        if results.get("status") == "in_progress":
+                            contributions = results.get("contributions", [])
+                            
+                            from rich.console import Console
+                            console = Console()
+                            
+                            for contrib in contributions[displayed_contributions:]:
+                                agent = contrib["agent"]
+                                contrib_num = contrib.get("contribution_num", "")
+                                content = contrib["content"]
+                                
+                                # Color code by agent
+                                if agent == "Divergent":
+                                    icon = "🔵"
+                                    color = "bright_blue"
+                                elif agent == "Convergent":
+                                    icon = "🟢"
+                                    color = "bright_green"
+                                elif agent == "Critical":
+                                    icon = "🔴"
+                                    color = "bright_red"
+                                else:
+                                    icon = "⚪"
+                                    color = "white"
+                                
+                                contrib_label = f" #{contrib_num}" if contrib_num else ""
+                                console.print(f"\n{icon} [{color}]{agent}{contrib_label}[/{color}]")
+                                console.print(f"[{color}]{content}[/{color}]")
+                                console.print(f"[dim]{'─' * 60}[/dim]\n")
+                        
+                        # Check for summary and display it
+                        summary = results.get("summary", "")
+                        if summary:
+                            from rich.console import Console
+                            from rich.panel import Panel
+                            console = Console()
+                            
+                            console.print("\n")
+                            console.print(Panel(
+                                f"[bold yellow]{summary}[/bold yellow]",
+                                title="[bold yellow]🐝 QUEEN'S SUMMARY[/bold yellow]",
+                                border_style="yellow",
+                                padding=(1, 2)
+                            ))
+                            console.print()
+                        
+                        # Return simple completion message since we already showed everything
+                        total = results.get("total_contributions", displayed_contributions)
+                        return f"Discussion complete with {total} contributions from the specialist team."
+                        
                     except json.JSONDecodeError:
                         logger.error(f"Failed to parse task result: {result}")
                         return "Error: Specialists produced invalid results."
@@ -224,11 +306,6 @@ class QueenAgent(BaseAgent):
             elif task["status"] == TaskStatus.FAILED.value:
                 logger.error(f"Task {task_id} failed")
                 return "Error: Specialist agents encountered an error processing your request."
-            
-            # Show progress indicator
-            dots = (dots + 1) % 4
-            status_msg = f"\r⏳ Specialists working{'.' * dots}{' ' * (3 - dots)}"
-            print(status_msg, end='', flush=True)
             
             # Wait a bit before checking again
             time.sleep(2)

@@ -3,6 +3,7 @@
 import json
 import logging
 import multiprocessing as mp
+import threading
 import time
 from typing import Any
 from uuid import UUID
@@ -60,7 +61,7 @@ class SpecialistWorker:
                 max_rounds = 3
 
             # Run iterative collaborative discussion
-            results = self._run_collaborative_discussion(user_input, context, max_rounds)
+            results = self._run_collaborative_discussion(task_id, user_input, context, max_rounds)
 
             # Store results
             result_json = json.dumps(results, indent=2)
@@ -75,93 +76,403 @@ class SpecialistWorker:
             error_result = json.dumps({"error": str(e)})
             self.task_repo.set_task_result(task_id, error_result)
 
-    def _run_collaborative_discussion(self, user_input: str, context: str, max_rounds: int) -> dict[str, Any]:
-        """Run iterative discussion between specialist agents.
+    def _run_collaborative_discussion(self, task_id: UUID, user_input: str, context: str, max_rounds: int) -> dict[str, Any]:
+        """Run asynchronous collaborative discussion between specialist agents.
 
-        Each agent can respond to what others have said, building on the conversation.
+        Agents work in parallel and contribute whenever they see fit, not in forced rounds.
 
         Args:
+            task_id: Task ID for storing intermediate results.
             user_input: Original user question.
             context: Conversation context.
-            max_rounds: Maximum discussion rounds.
+            max_rounds: Maximum time limit (in iterations, ~2 seconds each).
 
         Returns:
-            Dictionary with all rounds of discussion.
+            Dictionary with all contributions.
         """
-        logger.info(f"Starting collaborative discussion (max {max_rounds} rounds)")
+        logger.info(f"Starting async collaborative discussion (max {max_rounds * 2}s)")
 
-        # Initialize shared discussion transcript
+        # Shared discussion state with thread lock
+        discussion_lock = threading.Lock()
         discussion = []
+        stop_event = threading.Event()
+        agent_status = {}  # Track if each agent is thinking or idle
+        
+        def agent_worker(agent_name: str, agent_type: str):
+            """Worker thread for a single agent - contributes whenever it has something to add."""
+            with self.db:
+                # Create agent instance
+                if agent_type == "divergent":
+                    agent = DivergentAgent(self.session_id, self.config, self.db)
+                elif agent_type == "convergent":
+                    agent = ConvergentAgent(self.session_id, self.config, self.db)
+                else:  # critical
+                    agent = CriticalAgent(self.session_id, self.config, self.db)
+                
+                try:
+                    contribution_count = 0
+                    
+                    # Mark agent as idle initially
+                    with discussion_lock:
+                        agent_status[agent_name] = "idle"
+                    
+                    while not stop_event.is_set():
+                        # Get current discussion state
+                        with discussion_lock:
+                            current_discussion = discussion.copy()
+                        
+                        # Decide if this agent should contribute
+                        should_contribute = self._should_agent_contribute(
+                            agent_name, 
+                            current_discussion, 
+                            user_input,
+                            contribution_count
+                        )
+                        
+                        if should_contribute:
+                            # Mark as thinking
+                            with discussion_lock:
+                                agent_status[agent_name] = "thinking"
+                            
+                            logger.info(f"{agent_name} is thinking...")
+                            
+                            # Get agent's contribution
+                            response = self._get_async_agent_response(
+                                agent_name=agent_name,
+                                agent=agent,
+                                user_input=user_input,
+                                discussion=current_discussion,
+                                context=context
+                            )
+                            
+                            if response and not response.strip().upper().startswith("[PASS"):
+                                # Mark as contributing
+                                with discussion_lock:
+                                    agent_status[agent_name] = "contributing"
+                                
+                                contribution = {
+                                    "agent": agent_name,
+                                    "content": response,
+                                    "timestamp": time.time(),
+                                    "contribution_num": contribution_count + 1
+                                }
+                                
+                                # Add to shared discussion
+                                with discussion_lock:
+                                    discussion.append(contribution)
+                                    
+                                    # Store intermediate result
+                                    intermediate_result = {
+                                        "status": "in_progress",
+                                        "contributions": discussion.copy(),
+                                        "task": user_input
+                                    }
+                                    self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
+                                
+                                contribution_count += 1
+                                logger.info(f"{agent_name} contributed (#{contribution_count})")
+                            else:
+                                logger.info(f"{agent_name} passed")
+                        
+                        # Mark as idle after decision/contribution
+                        with discussion_lock:
+                            agent_status[agent_name] = "idle"
+                        
+                        # Wait a bit before checking again (let others contribute)
+                        time.sleep(2)
+                
+                finally:
+                    agent.terminate()
+        
+        # Start agent threads
+        threads = []
+        agents = [
+            ("Divergent", "divergent"),
+            ("Convergent", "convergent"),
+            ("Critical", "critical")
+        ]
+        
+        for agent_name, agent_type in agents:
+            thread = threading.Thread(
+                target=agent_worker,
+                args=(agent_name, agent_type),
+                daemon=True
+            )
+            thread.start()
+            threads.append(thread)
+            logger.info(f"Started async agent: {agent_name}")
+        
+        # Monitor discussion - stop only when ALL agents are idle
+        iterations = 0
+        all_idle_count = 0
+        
+        while iterations < max_rounds * 10:  # Extend max time significantly
+            time.sleep(1)  # Check every second
+            iterations += 1
+            
+            with discussion_lock:
+                # Check if ALL agents are idle
+                statuses = list(agent_status.values())
+                all_idle = all(status == "idle" for status in statuses) if statuses else False
+                
+                # Log current status
+                if iterations % 5 == 0:  # Log every 5 seconds
+                    status_str = ", ".join([f"{name}: {status}" for name, status in agent_status.items()])
+                    logger.info(f"Agent status: {status_str}")
+            
+            if all_idle and len(discussion) > 0:
+                # All agents idle, but wait a bit to be sure
+                all_idle_count += 1
+                if all_idle_count >= 6:  # 6 seconds of all idle
+                    logger.info("All agents idle for 6 seconds, stopping discussion")
+                    break
+            else:
+                # Reset counter if any agent is active
+                all_idle_count = 0
+        
+        # Signal all agents to stop
+        stop_event.set()
+        
+        # Wait for threads to finish (with timeout)
+        for thread in threads:
+            thread.join(timeout=5)
+        
+        # Generate final summary from Queen
+        logger.info("Generating Queen's final summary...")
+        summary = self._generate_queen_summary(user_input, discussion)
+        
+        return {
+            "task": user_input,
+            "context": context,
+            "total_contributions": len(discussion),
+            "contributions": discussion,
+            "summary": summary
+        }
+
+    def _generate_queen_summary(self, user_input: str, discussion: list[dict]) -> str:
+        """Generate Queen's final summary of the discussion.
+        
+        Args:
+            user_input: Original question.
+            discussion: Full discussion history.
+            
+        Returns:
+            Queen's summary.
+        """
+        if not discussion:
+            return "No discussion occurred."
+        
+        # Format the discussion for Queen
+        discussion_text = []
+        for i, contrib in enumerate(discussion, 1):
+            agent = contrib["agent"]
+            content = contrib["content"]
+            discussion_text.append(f"{i}. {agent}: {content}")
+        
+        discussion_str = "\n\n".join(discussion_text)
+        
+        # Create summary prompt for Queen
+        from queenbee.agents.queen import QueenAgent
         
         with self.db:
-            # Create agents once and reuse them
-            divergent = DivergentAgent(self.session_id, self.config, self.db)
-            convergent = ConvergentAgent(self.session_id, self.config, self.db)
-            critical = CriticalAgent(self.session_id, self.config, self.db)
+            queen = QueenAgent(self.session_id, self.config, self.db)
+            
+            summary_prompt = f"""The specialist team had the following discussion about: "{user_input}"
 
-            agents = [
-                {"name": "Divergent", "agent": divergent, "role": "explorer"},
-                {"name": "Convergent", "agent": convergent, "role": "synthesizer"},
-                {"name": "Critical", "agent": critical, "role": "validator"}
-            ]
+FULL DISCUSSION:
+{discussion_str}
 
-            rounds = []
+As the Queen orchestrator, provide a clear, actionable summary that:
+1. Synthesizes the key insights from all perspectives
+2. Presents the most important recommendations
+3. Highlights any critical concerns or trade-offs
+4. Gives a direct answer to the original question
 
-            for round_num in range(1, max_rounds + 1):
-                logger.info(f"Round {round_num}/{max_rounds}")
-                round_responses = []
+Keep it concise but comprehensive (2-3 paragraphs)."""
 
-                # Each agent gets a chance to speak
-                for agent_info in agents:
-                    agent_name = agent_info["name"]
-                    agent = agent_info["agent"]
-                    
-                    # Build prompt with discussion history
-                    response = self._get_agent_response(
-                        agent_name=agent_name,
-                        agent=agent,
-                        user_input=user_input,
-                        discussion=discussion,
-                        round_num=round_num,
-                        context=context
-                    )
+            try:
+                summary = queen.generate_response(summary_prompt, stream=False)
+                queen.terminate()
+                return str(summary)
+            except Exception as e:
+                logger.error(f"Error generating Queen summary: {e}")
+                queen.terminate()
+                return "Unable to generate summary."
 
-                    if response:  # Agent chose to respond
-                        contribution = {
-                            "agent": agent_name,
-                            "round": round_num,
-                            "content": response,
-                            "timestamp": time.time()
-                        }
-                        
-                        discussion.append(contribution)
-                        round_responses.append(contribution)
-                        logger.info(f"{agent_name} contributed in round {round_num}")
-                    else:
-                        logger.info(f"{agent_name} passed on round {round_num}")
+    def _should_agent_contribute(
+        self, 
+        agent_name: str, 
+        discussion: list[dict], 
+        user_input: str,
+        contribution_count: int
+    ) -> bool:
+        """Decide if agent should contribute based on discussion state.
+        
+        Args:
+            agent_name: Name of the agent.
+            discussion: Current discussion history.
+            user_input: Original question.
+            contribution_count: How many times this agent has contributed.
+            
+        Returns:
+            True if agent should try to contribute.
+        """
+        # First contribution - always try
+        if contribution_count == 0:
+            return True
+        
+        # Don't spam - wait for others to contribute
+        if discussion:
+            last_contrib = discussion[-1]
+            # Don't contribute twice in a row
+            if last_contrib["agent"] == agent_name:
+                return False
+        
+        # Limit contributions per agent (max 3)
+        if contribution_count >= 3:
+            return False
+        
+        # If discussion is long enough (6+ contributions), agents can be more selective
+        if len(discussion) >= 6:
+            # Only contribute every other check
+            return contribution_count < 2
+        
+        return True
+    
+    def _get_async_agent_response(
+        self,
+        agent_name: str,
+        agent: Any,
+        user_input: str,
+        discussion: list[dict],
+        context: str
+    ) -> str | None:
+        """Get async agent response based on current discussion.
+        
+        Args:
+            agent_name: Name of the agent.
+            agent: Agent instance.
+            user_input: Original question.
+            discussion: Current discussion history.
+            context: Additional context.
+            
+        Returns:
+            Agent's response or None.
+        """
+        # Format discussion history with analysis
+        discussion_text = self._format_discussion_for_analysis(discussion)
+        
+        # Build agent-specific prompt with explicit instruction to check for new value
+        if agent_name == "Divergent":
+            prompt = f"""Original question: {user_input}
 
-                rounds.append({
-                    "round": round_num,
-                    "responses": round_responses
-                })
+Discussion so far:
+{discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
 
-                # Check if we should continue (did anyone speak this round?)
-                if not round_responses:
-                    logger.info(f"No responses in round {round_num}, ending discussion")
-                    break
+You are the Divergent thinker. Your role is to explore diverse perspectives.
 
-            # Cleanup agents
-            divergent.terminate()
-            convergent.terminate()
-            critical.terminate()
+CRITICAL: Before responding, carefully analyze what has ALREADY been said:
+1. Read through all existing contributions
+2. Identify what perspectives, angles, and ideas are already covered
+3. Ask yourself: "What NEW perspective can I add that hasn't been mentioned?"
 
-            return {
-                "task": user_input,
-                "context": context,
-                "rounds": rounds,
-                "total_contributions": len(discussion),
-                "full_discussion": discussion
-            }
+Respond with [PASS] if:
+- The question has been thoroughly explored from multiple angles
+- You would just be repeating what others already said
+- No new perspectives come to mind
+
+Only contribute if you can add:
+- A completely NEW perspective or angle not yet mentioned
+- A challenge to assumptions no one else has raised
+- A different way of thinking about the problem
+- An unexplored aspect or dimension
+
+Be specific and concrete. Add genuine value, not repetition."""
+
+        elif agent_name == "Convergent":
+            prompt = f"""Original question: {user_input}
+
+Discussion so far:
+{discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
+
+You are the Convergent synthesizer. Your role is to find patterns and create actionable recommendations.
+
+CRITICAL: Before responding, carefully analyze what has ALREADY been said:
+1. Review all existing contributions thoroughly
+2. Check what syntheses, patterns, or recommendations already exist
+3. Ask yourself: "What NEW synthesis or refinement can I provide?"
+
+Respond with [PASS] if:
+- A clear synthesis has already been provided
+- The recommendations are already well-defined
+- You would just be restating existing conclusions
+
+Only contribute if you can add:
+- A NEW synthesis that builds on recent contributions
+- Additional patterns or connections not yet highlighted
+- Refined or prioritized recommendations based on new information
+- Clearer action items or implementation guidance
+
+Be specific about what you're adding beyond what's already been said."""
+
+        else:  # Critical
+            prompt = f"""Original question: {user_input}
+
+Discussion so far:
+{discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
+
+You are the Critical validator. Your role is to identify risks, flaws, and validate solutions.
+
+CRITICAL: Before responding, carefully analyze what has ALREADY been said:
+1. Review all existing contributions and concerns raised
+2. Check what risks, issues, and validations have been mentioned
+3. Ask yourself: "What NEW concern or validation can I provide?"
+
+Respond with [PASS] if:
+- Major risks and concerns have been thoroughly identified
+- Proposed solutions have been adequately validated
+- You would just be repeating existing critiques
+
+Only contribute if you can add:
+- A NEW risk, concern, or edge case not yet mentioned
+- Validation of recently proposed solutions
+- A logical inconsistency or flaw others missed
+- Important safeguards or considerations overlooked
+
+Be specific about the new concern or validation you're adding."""
+
+        # Get response from agent
+        try:
+            response = agent.generate_response(prompt, stream=False)
+            return response if response else None
+        except Exception as e:
+            logger.error(f"{agent_name} error: {e}")
+            return None
+    
+    def _format_discussion_for_analysis(self, discussion: list[dict]) -> str:
+        """Format discussion history for agent analysis.
+
+        Args:
+            discussion: List of contributions.
+
+        Returns:
+            Formatted discussion string with clear separators.
+        """
+        if not discussion:
+            return ""
+
+        lines = []
+        for i, contrib in enumerate(discussion, 1):
+            agent = contrib["agent"]
+            content = contrib["content"]
+            contrib_num = contrib.get("contribution_num", "")
+            
+            lines.append(f"--- Contribution {i} ---")
+            lines.append(f"Agent: {agent} (contribution #{contrib_num})")
+            lines.append(f"Content: {content}")
+            lines.append("")
+
+        return "\n".join(lines)
 
     def _get_agent_response(
         self, 

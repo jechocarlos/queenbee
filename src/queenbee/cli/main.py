@@ -121,12 +121,23 @@ def main() -> int:
     try:
         # Load configuration
         config_path = "config.yaml"
+        config_path_resolved = Path(config_path).resolve()
+        
+        console.print(f"[dim]Loading config from: {config_path_resolved}[/dim]")
+        
         if not Path(config_path).exists():
             console.print(f"[red]Error: Configuration file not found: {config_path}[/red]")
             console.print("[yellow]Please create config.yaml or run from project root.[/yellow]")
             return 1
 
         config = load_config(config_path)
+        
+        # Show key config values for debugging
+        console.print(f"[dim]✓ Ollama model: {config.ollama.model}[/dim]")
+        console.print(f"[dim]✓ Ollama host: {config.ollama.host}[/dim]")
+        console.print(f"[dim]✓ Database: {config.database.host}:{config.database.port}/{config.database.name}[/dim]")
+        console.print(f"[dim]✓ Log level: {config.logging.level}[/dim]")
+        
         setup_logging(config.logging.level)
 
         logger = logging.getLogger(__name__)

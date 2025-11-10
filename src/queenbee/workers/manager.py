@@ -722,16 +722,18 @@ def worker_process(config_path: str, session_id: str) -> None:
         config_path: Path to configuration file.
         session_id: Session ID as string.
     """
-    # Set up logging for worker process
-    logging.basicConfig(
-        level=logging.INFO,
-        format="[Worker] %(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
-    logger.info(f"Worker process started for session {session_id}")
-
-    # Load configuration
+    # Load configuration first to get logging settings
     config = load_config(config_path)
+    
+    # Set up logging for worker process with config settings
+    logging.basicConfig(
+        level=getattr(logging, config.logging.level.upper()),
+        format="[Worker] %(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        force=True  # Override any previous basicConfig
+    )
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"Worker process started for session {session_id}")
 
     # Create and run worker
     worker = SpecialistWorker(config, UUID(session_id))

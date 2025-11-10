@@ -4,29 +4,43 @@
 
 QueenBee is an intelligent agent orchestration system that dynamically spawns specialized thinking agents to tackle complex problems through divergent exploration, convergent synthesis, and critical analysis.
 
-## Features
+## ✨ Key Features
 
-- **Intelligent Orchestration**: Main Queen agent analyzes complexity and delegates appropriately
-- **Specialized Thinking Modes**: Three specialist agents (Divergent, Convergent, Critical)
-- **Consensus-Based Completion**: Agents collaborate until reaching agreement
-- **Persistent Memory**: PostgreSQL-backed agent state and knowledge
-- **Local LLM**: Powered by Ollama for privacy and control
-- **Activity-Based TTL**: Agents expire after inactivity, keeping system lean
+- **🎯 Intelligent Orchestration**: Queen agent analyzes complexity and delegates to specialists
+- **🧠 Multi-Agent Collaboration**: Three specialist agents work together on complex problems
+  - **Divergent Agent**: Explores multiple perspectives and creative approaches
+  - **Convergent Agent**: Synthesizes insights and ranks recommendations
+  - **Critical Agent**: Validates solutions and identifies risks
+- **⚡ Real-time Streaming**: LLM responses stream token-by-token for immediate feedback
+- **💬 Live Chat History**: View entire conversation with `history` command
+- **🔄 Async Worker Processes**: Specialists run in background for true parallelism
+- **🗄️ Persistent Memory**: PostgreSQL-backed agent state, tasks, and knowledge
+- **🏠 Local LLM**: Powered by Ollama for privacy and control
+- **⏰ Activity-Based TTL**: Agents expire after inactivity, keeping system lean
 
 ## Architecture
 
 ```
-User ─→ Queen Agent ─→ Complexity Analysis
-                  ↓
-          ┌───────┼───────┐
-          ↓       ↓       ↓
-      Divergent Convergent Critical
-          ↓       ↓       ↓
-          └───────┼───────┘
-                  ↓
-            Consensus Check
-                  ↓
-          Aggregated Response
+User Input
+    ↓
+Queen Agent (Orchestrator)
+    ├─→ Simple Request → Direct Response
+    └─→ Complex Request → Task Queue
+                              ↓
+                     Worker Process Manager
+                              ↓
+                    ┌─────────┼─────────┐
+                    ↓         ↓         ↓
+                Divergent Convergent Critical
+                (Explore)  (Synthesize) (Validate)
+                    ↓         ↓         ↓
+                    └─────────┼─────────┘
+                              ↓
+                        Task Results
+                              ↓
+                    Queen Synthesizes
+                              ↓
+                    Collaborative Response
 ```
 
 ## Quick Start

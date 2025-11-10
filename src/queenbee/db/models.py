@@ -264,3 +264,125 @@ class ChatRepository:
 
             cursor.execute(query, (session_id,))
             return cursor.fetchall()
+
+
+class TaskRepository:
+    """Repository for task operations."""
+
+    def __init__(self, db: DatabaseManager):
+        """Initialize repository.
+
+        Args:
+            db: Database manager.
+        """
+        self.db = db
+
+    def create_task(
+        self,
+        session_id: UUID,
+        assigned_by: UUID,
+        assigned_to: list[UUID],
+        description: str,
+    ) -> UUID:
+        """Create a new task.
+
+        Args:
+            session_id: Session ID.
+            assigned_by: Agent ID that created the task (usually Queen).
+            assigned_to: List of agent IDs assigned to work on this task.
+            description: Task description.
+
+        Returns:
+            Task ID.
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO tasks (session_id, assigned_by, assigned_to, description, status) "
+                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                (session_id, assigned_by, assigned_to, description, TaskStatus.PENDING.value),
+            )
+            result = cursor.fetchone()
+            return result["id"]
+
+    def get_task(self, task_id: UUID) -> dict[str, Any] | None:
+        """Get task by ID.
+
+        Args:
+            task_id: Task ID.
+
+        Returns:
+            Task data or None if not found.
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
+            return cursor.fetchone()
+
+    def get_pending_tasks(self, session_id: UUID | None = None) -> list[dict[str, Any]]:
+        """Get pending tasks.
+
+        Args:
+            session_id: Optional session ID filter.
+
+        Returns:
+            List of pending tasks.
+        """
+        with self.db.get_cursor() as cursor:
+            if session_id:
+                cursor.execute(
+                    "SELECT * FROM tasks WHERE status = %s AND session_id = %s ORDER BY created_at",
+                    (TaskStatus.PENDING.value, session_id),
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM tasks WHERE status = %s ORDER BY created_at",
+                    (TaskStatus.PENDING.value,),
+                )
+            return cursor.fetchall()
+
+    def update_task_status(self, task_id: UUID, status: TaskStatus) -> None:
+        """Update task status.
+
+        Args:
+            task_id: Task ID.
+            status: New status.
+        """
+        with self.db.get_cursor() as cursor:
+            if status == TaskStatus.COMPLETED:
+                cursor.execute(
+                    "UPDATE tasks SET status = %s, completed_at = NOW() WHERE id = %s",
+                    (status.value, task_id),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE tasks SET status = %s WHERE id = %s",
+                    (status.value, task_id),
+                )
+
+    def set_task_result(self, task_id: UUID, result: str) -> None:
+        """Set task result.
+
+        Args:
+            task_id: Task ID.
+            result: Task result (typically JSON string).
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "UPDATE tasks SET result = %s WHERE id = %s",
+                (result, task_id),
+            )
+
+    def get_session_tasks(self, session_id: UUID) -> list[dict[str, Any]]:
+        """Get all tasks for a session.
+
+        Args:
+            session_id: Session ID.
+
+        Returns:
+            List of tasks.
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM tasks WHERE session_id = %s ORDER BY created_at DESC",
+                (session_id,),
+            )
+            return cursor.fetchall()

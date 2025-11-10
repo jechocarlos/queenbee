@@ -20,6 +20,7 @@ from queenbee.config.loader import load_config
 from queenbee.db.connection import DatabaseManager
 from queenbee.db.models import ChatRepository, MessageRole
 from queenbee.session.manager import SessionManager
+from queenbee.workers import WorkerManager
 
 console = Console()
 
@@ -165,6 +166,11 @@ def main() -> int:
                 console.print("[red]✗ Failed to create session[/red]")
                 return 1
             
+            # Initialize worker manager and start worker for this session
+            worker_mgr = WorkerManager(config)
+            worker_mgr.start_worker(session_id)
+            console.print("[green]✓ Specialist worker process started[/green]")
+            
             # Initialize Queen agent and chat repository
             queen = QueenAgent(
                 session_id=session_id,
@@ -177,57 +183,73 @@ def main() -> int:
             print_banner()
             console.print(f"[green]✓ Session started: {session_id}[/green]")
             console.print(f"[green]✓ Queen agent ready[/green]")
-            console.print(f"[dim]💡 Tip: Type 'history' to see recent messages[/dim]\n")
+            console.print(f"[dim]💡 Tip: Type 'history' to see recent messages, 'specialists on/off' to toggle[/dim]\n")
 
             # Main interaction loop
-            while True:
-                try:
-                    # Get user input
-                    user_input = Prompt.ask("[bold cyan]You[/bold cyan]")
+            try:
+                while True:
+                    try:
+                        # Get user input
+                        user_input = Prompt.ask("[bold cyan]You[/bold cyan]")
 
-                    if not user_input.strip():
-                        continue
+                        if not user_input.strip():
+                            continue
 
-                    # Check for special commands
-                    if user_input.lower() in ["exit", "quit", "bye"]:
-                        console.print("[yellow]Goodbye! 👋[/yellow]")
-                        break
-                    
-                    if user_input.lower() in ["history", "hist", "h"]:
-                        display_chat_history(chat_repo, session_id, limit=20)
-                        continue
-
-                    # Process request with streaming
-                    console.print("[dim]Queen is thinking...[/dim]")
-                    response = queen.process_request(user_input, stream=True)
-
-                    # Handle streaming response
-                    if isinstance(response, str):
-                        # Non-streaming response
-                        console.print(f"\n[bold yellow]🐝 Queen[/bold yellow]: {response}\n")
-                    else:
-                        # Streaming response
-                        full_response = stream_response(response)
+                        # Check for special commands
+                        if user_input.lower() in ["exit", "quit", "bye"]:
+                            console.print("[yellow]Goodbye! 👋[/yellow]")
+                            break
                         
-                        # Log the complete response to chat history
-                        chat_repo.add_message(
-                            session_id=session_id,
-                            agent_id=queen.agent_id,
-                            role=MessageRole.QUEEN,
-                            content=full_response,
-                        )
+                        if user_input.lower() in ["history", "hist", "h"]:
+                            display_chat_history(chat_repo, session_id, limit=20)
+                            continue
+                        
+                        # Toggle specialists
+                        if user_input.lower() in ["specialists on", "enable specialists"]:
+                            queen.enable_specialists = True
+                            console.print("[green]✓ Specialist spawning enabled[/green]\n")
+                            continue
+                        
+                        if user_input.lower() in ["specialists off", "disable specialists"]:
+                            queen.enable_specialists = False
+                            console.print("[yellow]⚠ Specialist spawning disabled[/yellow]\n")
+                            continue
 
-                    # Show updated chat history indicator
-                    message_count = len(chat_repo.get_session_history(session_id))
-                    console.print(f"[dim]💬 Total messages in session: {message_count} (type 'history' to view)[/dim]\n")
+                        # Process request with streaming
+                        console.print("[dim]Queen is thinking...[/dim]")
+                        response = queen.process_request(user_input, stream=True)
 
-                except KeyboardInterrupt:
-                    console.print("\n[yellow]Use 'exit' or 'quit' to close gracefully.[/yellow]")
-                    continue
-                except Exception as e:
-                    logger.error(f"Error processing request: {e}", exc_info=True)
-                    console.print(f"[red]Error: {e}[/red]")
-                    continue
+                        # Handle streaming response
+                        if isinstance(response, str):
+                            # Non-streaming response
+                            console.print(f"\n[bold yellow]🐝 Queen[/bold yellow]: {response}\n")
+                        else:
+                            # Streaming response
+                            full_response = stream_response(response)
+                            
+                            # Log the complete response to chat history
+                            chat_repo.add_message(
+                                session_id=session_id,
+                                agent_id=queen.agent_id,
+                                role=MessageRole.QUEEN,
+                                content=full_response,
+                            )
+
+                        # Show updated chat history indicator
+                        message_count = len(chat_repo.get_session_history(session_id))
+                        console.print(f"[dim]💬 Total messages in session: {message_count} (type 'history' to view)[/dim]\n")
+
+                    except KeyboardInterrupt:
+                        console.print("\n[yellow]Use 'exit' or 'quit' to close gracefully.[/yellow]")
+                        continue
+                    except Exception as e:
+                        logger.error(f"Error processing request: {e}", exc_info=True)
+                        console.print(f"[red]Error: {e}[/red]")
+                        continue
+            finally:
+                # Stop worker on exit
+                console.print("[dim]Stopping specialist workers...[/dim]")
+                worker_mgr.stop_worker(session_id)
 
         # Cleanup
         db.disconnect()

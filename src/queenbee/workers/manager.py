@@ -100,10 +100,11 @@ class SpecialistWorker:
         rolling_summary = {"content": "", "last_update": 0}  # Track rolling summary
         
         def update_rolling_summary():
-            """Background thread that continuously updates the rolling summary."""
+            """Background thread that continuously updates the rolling summary using SummarizerAgent."""
             with self.db:
-                from queenbee.agents.queen import QueenAgent
-                queen = QueenAgent(self.session_id, self.config, self.db)
+                # Create SummarizerAgent for generating summaries
+                from queenbee.agents.summarizer import SummarizerAgent
+                summarizer = SummarizerAgent(self.session_id, self.config, self.db)
                 
                 try:
                     while not stop_event.is_set():
@@ -117,29 +118,14 @@ class SpecialistWorker:
                         if contrib_count > 0 and contrib_count != rolling_summary["last_update"]:
                             logger.info(f"Updating rolling summary (contributions: {contrib_count})...")
                             
-                            # Format discussion for summary
-                            discussion_text = []
-                            for i, contrib in enumerate(current_discussion, 1):
-                                agent = contrib["agent"]
-                                content = contrib["content"]
-                                discussion_text.append(f"{i}. {agent}: {content}")
-                            
-                            discussion_str = "\n\n".join(discussion_text)
-                            
-                            summary_prompt = f"""Question: "{user_input}"
-
-CURRENT DISCUSSION ({contrib_count} contributions so far):
-{discussion_str}
-
-Provide a BRIEF rolling summary (2-3 sentences) of:
-1. What has been covered so far
-2. Key insights emerging
-3. What direction the discussion is taking
-
-This is an ongoing discussion - focus on synthesis, not conclusion."""
-
                             try:
-                                summary_response = queen.generate_response(summary_prompt, stream=False)
+                                # Use SummarizerAgent to generate rolling summary
+                                summary_response = summarizer.generate_rolling_summary(
+                                    user_input=user_input,
+                                    contributions=current_discussion,
+                                    stream=False
+                                )
+                                
                                 with discussion_lock:
                                     rolling_summary["content"] = str(summary_response)
                                     rolling_summary["last_update"] = contrib_count
@@ -158,7 +144,8 @@ This is an ongoing discussion - focus on synthesis, not conclusion."""
                                 logger.error(f"Error updating rolling summary: {e}")
                 
                 finally:
-                    queen.terminate()
+                    summarizer.terminate()
+                    logger.info("Summarizer agent terminated")
         
         def agent_worker(agent_name: str, agent_type: str):
             """Worker thread for a single agent - contributes whenever it has something to add."""
@@ -328,7 +315,7 @@ This is an ongoing discussion - focus on synthesis, not conclusion."""
         }
 
     def _generate_queen_summary(self, user_input: str, discussion: list[dict], rolling_summary: str = "") -> str:
-        """Generate Queen's final summary of the discussion.
+        """Generate final synthesis using SummarizerAgent.
         
         Args:
             user_input: Original question.
@@ -336,56 +323,29 @@ This is an ongoing discussion - focus on synthesis, not conclusion."""
             rolling_summary: The last rolling summary generated during discussion.
             
         Returns:
-            Queen's summary.
+            Final synthesis from SummarizerAgent.
         """
         if not discussion:
             return "No discussion occurred."
         
-        # Format the discussion for Queen
-        discussion_text = []
-        for i, contrib in enumerate(discussion, 1):
-            agent = contrib["agent"]
-            content = contrib["content"]
-            discussion_text.append(f"{i}. {agent}: {content}")
-        
-        discussion_str = "\n\n".join(discussion_text)
-        
-        # Create summary prompt for Queen
-        from queenbee.agents.queen import QueenAgent
+        # Use SummarizerAgent to generate final synthesis
+        from queenbee.agents.summarizer import SummarizerAgent
         
         with self.db:
-            queen = QueenAgent(self.session_id, self.config, self.db)
+            summarizer = SummarizerAgent(self.session_id, self.config, self.db)
             
-            # Include rolling summary if available
-            rolling_context = ""
-            if rolling_summary:
-                rolling_context = f"""
-ROLLING SUMMARY (generated during discussion):
-{rolling_summary}
-
-"""
-            
-            summary_prompt = f"""The specialist team had the following discussion about: "{user_input}"
-
-{rolling_context}FULL DISCUSSION:
-{discussion_str}
-
-As the Queen orchestrator, provide a clear, actionable summary that:
-1. Builds upon the rolling summary insights (if provided)
-2. Synthesizes the key insights from all perspectives
-3. Presents the most important recommendations
-4. Highlights any critical concerns or trade-offs
-5. Gives a direct answer to the original question
-
-KEEP IT CONCISE: Maximum 4-5 sentences. Be clear and actionable."""
-
             try:
-                summary = queen.generate_response(summary_prompt, stream=False)
-                queen.terminate()
-                return str(summary)
+                synthesis = summarizer.generate_final_synthesis(
+                    user_input=user_input,
+                    contributions=discussion,
+                    rolling_summary=rolling_summary,
+                    stream=False
+                )
+                summarizer.terminate()
+                return str(synthesis)
             except Exception as e:
-                logger.error(f"Error generating Queen summary: {e}")
-                queen.terminate()
+                logger.error(f"Error generating final synthesis: {e}")
+                summarizer.terminate()
                 return "Unable to generate summary."
 
     def _should_agent_contribute(

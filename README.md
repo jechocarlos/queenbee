@@ -2,8 +2,8 @@
 
 **Meta-Agent Orchestration System with Specialized Thinking Agents**
 
-![Tests](https://img.shields.io/badge/tests-119%20passed%2C%202%20skipped-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-52%25-yellow)
+![Tests](https://img.shields.io/badge/tests-123%20passed%2C%202%20skipped-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-54%25-yellow)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
@@ -11,11 +11,13 @@ QueenBee is an intelligent agent orchestration system that dynamically spawns sp
 
 ## ✨ Key Features
 
-- **🎯 Intelligent Orchestration**: Queen agent analyzes complexity and delegates to specialists
-- **🧠 Multi-Agent Collaboration**: Three specialist agents work together on complex problems
+- **🎯 Pure Orchestration**: Queen agent delegates all requests to specialist team
+- **🧠 Multi-Agent Collaboration**: Four specialist agents work together on every query
   - **Divergent Agent**: Explores multiple perspectives and creative approaches
   - **Convergent Agent**: Synthesizes insights and ranks recommendations
   - **Critical Agent**: Validates solutions and identifies risks
+  - **Summarizer Agent**: Generates rolling summaries and final synthesis
+- **📊 Live Progress Updates**: Real-time rolling summaries show emerging insights
 - **⚡ Real-time Streaming**: LLM responses stream token-by-token for immediate feedback
 - **💬 Live Chat History**: View entire conversation with `history` command
 - **🔄 Async Worker Processes**: Specialists run in background for true parallelism
@@ -31,23 +33,22 @@ QueenBee is an intelligent agent orchestration system that dynamically spawns sp
 ```
 User Input
     ↓
-Queen Agent (Orchestrator)
-    ├─→ Simple Request → Direct Response
-    └─→ Complex Request → Task Queue
-                              ↓
-                     Worker Process Manager
-                              ↓
-                    ┌─────────┼─────────┐
-                    ↓         ↓         ↓
-                Divergent Convergent Critical
-                (Explore)  (Synthesize) (Validate)
-                    ↓         ↓         ↓
-                    └─────────┼─────────┘
-                              ↓
-                        Task Results
-                              ↓
-                    Queen Synthesizes
-                              ↓
+Queen Agent (Pure Orchestrator)
+    ↓
+Task Queue → Specialist Discussion
+                ↓
+     ┌──────────┼──────────┐
+     ↓          ↓          ↓
+ Divergent  Convergent  Critical
+ (Explore)  (Synthesize) (Validate)
+     ↓          ↓          ↓
+     └──────────┼──────────┘
+                ↓
+        Summarizer Agent
+     (Rolling + Final Synthesis)
+                ↓
+      Queen's Final Response
+                ↓
                     Collaborative Response
 ```
 
@@ -100,23 +101,57 @@ queenbee
 
 ## Usage
 
-### Simple Request (Queen handles directly)
+### Every Request Gets Full Team Analysis
 ```
 > What's the capital of France?
-[Queen] Paris.
+
+[Queen] Delegating to my specialist team for collaborative analysis...
+
+🔵 Divergent #1
+France's capital is Paris, known for the Eiffel Tower, Louvre Museum, and as a cultural hub...
+
+🟢 Convergent #1
+Paris is definitively the capital of France, both politically and culturally...
+
+🔴 Critical #1
+Confirmed: Paris has been France's capital since 987 CE...
+
+📋 FINAL SYNTHESIS
+Paris is the capital of France, serving as the political, cultural, and economic center.
+
+🐝 QUEEN'S RESPONSE
+Paris is the capital of France.
 ```
 
-### Complex Request (Spawns specialists)
+### Complex Analysis Example
 ```
 > Should I use microservices or a monolith for my startup?
 
-[Queen] This is a complex multi-perspective question. Spawning specialists...
-[Queen] ✓ Divergent spawned
-[Queen] ✓ Convergent spawned
-[Queen] ✓ Critical spawned
-[Queen] Coordinating analysis...
+[Queen] Delegating to my specialist team for collaborative analysis...
 
-[Working in background...]
+🔵 Divergent #1
+Let's explore multiple architectural approaches: microservices for scalability...
+
+🟢 Convergent #1
+Synthesizing the perspectives: start with a modular monolith...
+
+🔴 Critical #1
+Key concerns: operational complexity vs development speed...
+
+💭 Rolling Summary
+The team is analyzing trade-offs between microservices (scalability, complexity) 
+and monoliths (simplicity, faster initial development)...
+
+[Discussion continues...]
+
+📋 FINAL SYNTHESIS
+For a startup, begin with a modular monolith to validate product-market fit quickly. 
+Extract microservices only when specific scaling bottlenecks emerge. Key trade-off: 
+operational complexity vs development velocity.
+
+🐝 QUEEN'S RESPONSE
+I recommend starting with a modular monolith architecture for your startup...
+```
 
 [Queen] Analysis complete. Here's what the team found:
 [Synthesized findings from all three specialists]
@@ -207,6 +242,13 @@ python scripts/migrate.py
 
 ## Specialist Thinking Modes
 
+### Queen Agent (Pure Orchestrator)
+- Receives all user requests
+- Delegates to specialist team for analysis
+- Receives synthesis from SummarizerAgent
+- Presents final response to user
+- No direct analysis or complexity checking
+
 ### Divergent Thinker
 - Explores possibilities
 - Generates multiple approaches
@@ -224,6 +266,12 @@ python scripts/migrate.py
 - Assesses risks
 - Validates assumptions
 - Tests robustness
+
+### Summarizer Agent
+- Generates rolling summaries during discussion
+- Synthesizes insights from all perspectives
+- Creates final comprehensive synthesis
+- Focuses on substance over process
 
 ## Contributing
 

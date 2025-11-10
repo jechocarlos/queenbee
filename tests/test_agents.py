@@ -311,3 +311,96 @@ class TestCriticalAgent:
             
             call_kwargs = mock_gen.call_args[1]
             assert call_kwargs["temperature"] == 0.3  # Lower temp for analytical precision
+
+
+class TestSummarizerAgent:
+    """Test Summarizer agent functionality."""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create mock configuration."""
+        config = MagicMock(spec=Config)
+        config.ollama = MagicMock()
+        config.ollama.model = "llama2"
+        config.ollama.host = "http://localhost:11434"
+        config.ollama.timeout = 30
+        config.agents = MagicMock()
+        config.agents.summarizer = MagicMock()
+        config.agents.summarizer.system_prompt_file = "prompts/summarizer.md"
+        return config
+
+    @pytest.fixture
+    def mock_db(self):
+        """Create mock database."""
+        db = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_cursor.__exit__ = MagicMock(return_value=False)
+        mock_cursor.fetchone = MagicMock(return_value={"id": uuid4()})
+        db.get_cursor = MagicMock(return_value=mock_cursor)
+        return db
+
+    @pytest.fixture
+    def agent(self, mock_config, mock_db):
+        """Create Summarizer agent instance."""
+        from queenbee.agents.summarizer import SummarizerAgent
+        
+        with patch('queenbee.agents.base.AgentRepository'):
+            with patch('queenbee.agents.base.Path') as mock_path:
+                mock_path_instance = MagicMock()
+                mock_path_instance.exists.return_value = True
+                mock_path.return_value = mock_path_instance
+                with patch('builtins.open', MagicMock(return_value=MagicMock(__enter__=lambda s: MagicMock(read=lambda: "System prompt")))):
+                    session_id = uuid4()
+                    return SummarizerAgent(session_id, mock_config, mock_db)
+
+    def test_initialization(self, mock_config, mock_db):
+        """Test that Summarizer agent initializes correctly."""
+        from queenbee.agents.summarizer import SummarizerAgent
+        
+        with patch('queenbee.agents.base.AgentRepository'):
+            with patch('queenbee.agents.base.Path') as mock_path:
+                mock_path_instance = MagicMock()
+                mock_path_instance.exists.return_value = True
+                mock_path.return_value = mock_path_instance
+                with patch('builtins.open', MagicMock(return_value=MagicMock(__enter__=lambda s: MagicMock(read=lambda: "System prompt")))):
+                    session_id = uuid4()
+                    agent = SummarizerAgent(session_id, mock_config, mock_db)
+                    
+                    assert agent.agent_type == AgentType.SUMMARIZER
+                    assert agent.session_id == session_id
+
+    def test_generate_rolling_summary(self, agent):
+        """Test that rolling summary is generated."""
+        contributions = [
+            {"agent": "Divergent", "content": "Idea 1"},
+            {"agent": "Convergent", "content": "Synthesis 1"}
+        ]
+        
+        with patch.object(agent.ollama, 'generate', return_value="Rolling summary"):
+            result = agent.generate_rolling_summary("Test question", contributions)
+            
+            assert isinstance(result, str)
+            assert result == "Rolling summary"
+            agent.ollama.generate.assert_called_once()
+
+    def test_generate_final_synthesis(self, agent):
+        """Test that final synthesis is generated."""
+        contributions = [
+            {"agent": "Divergent", "content": "Idea 1"},
+            {"agent": "Convergent", "content": "Synthesis 1"},
+            {"agent": "Critical", "content": "Analysis 1"}
+        ]
+        
+        with patch.object(agent.ollama, 'generate', return_value="Final synthesis"):
+            result = agent.generate_final_synthesis("Test question", contributions)
+            
+            assert isinstance(result, str)
+            assert result == "Final synthesis"
+            agent.ollama.generate.assert_called_once()
+
+    def test_empty_contributions_returns_message(self, agent):
+        """Test that empty contributions returns appropriate message."""
+        result = agent.generate_rolling_summary("Test question", [])
+        
+        assert result == "No contributions yet."

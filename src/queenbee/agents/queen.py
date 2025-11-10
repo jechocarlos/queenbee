@@ -49,12 +49,12 @@ class QueenAgent(BaseAgent):
             content=user_input,
         )
 
-        # Analyze complexity
-        is_complex = self._analyze_complexity(user_input)
-
-        if is_complex:
+        # Always delegate to specialists for collaborative discussion
+        # The Queen's role is purely orchestration - specialists handle all analysis
+        if self.enable_specialists:
             response = self._handle_complex_request(user_input, stream=stream)
         else:
+            # Fallback to direct response only if specialists are explicitly disabled
             response = self._handle_simple_request(user_input, stream=stream)
 
         # If streaming, we can't log yet - caller will handle logging
@@ -308,15 +308,34 @@ class QueenAgent(BaseAgent):
                             console.print("\n")
                             console.print(Panel(
                                 f"[bold yellow]{summary}[/bold yellow]",
-                                title="[bold yellow]🐝 QUEEN'S SUMMARY[/bold yellow]",
+                                title="[bold yellow]� FINAL SYNTHESIS[/bold yellow]",
                                 border_style="yellow",
                                 padding=(1, 2)
                             ))
                             console.print()
                         
-                        # Return simple completion message since we already showed everything
+                        # Queen uses the synthesis to provide final answer
                         total = results.get("total_contributions", displayed_contributions)
-                        return f"Discussion complete with {total} contributions from the specialist team."
+                        
+                        # Generate Queen's response based on the synthesis
+                        if summary:
+                            queen_response = self._generate_final_response(user_input, summary)
+                            
+                            from rich.console import Console
+                            from rich.panel import Panel
+                            console = Console()
+                            
+                            console.print(Panel(
+                                f"[bold cyan]{queen_response}[/bold cyan]",
+                                title="[bold cyan]🐝 QUEEN'S RESPONSE[/bold cyan]",
+                                border_style="cyan",
+                                padding=(1, 2)
+                            ))
+                            console.print()
+                            
+                            return queen_response
+                        else:
+                            return f"Discussion complete with {total} contributions from the specialist team."
                         
                     except json.JSONDecodeError:
                         logger.error(f"Failed to parse task result: {result}")
@@ -332,6 +351,34 @@ class QueenAgent(BaseAgent):
         # Timeout - fallback to direct response
         logger.warning(f"Task {task_id} timed out, falling back to direct response")
         return "I delegated this to my specialist team, but they're taking longer than expected. Let me provide a direct answer:\n\n" + str(self.generate_response(user_input, stream=False))
+    
+    def _generate_final_response(self, user_input: str, synthesis: str) -> str:
+        """Generate Queen's final response based on the synthesis from SummarizerAgent.
+        
+        Args:
+            user_input: Original user question.
+            synthesis: The synthesis provided by the SummarizerAgent.
+            
+        Returns:
+            Queen's final response to the user.
+        """
+        # Queen uses the synthesis to craft a final answer
+        prompt = f"""The user asked: "{user_input}"
+
+My specialist team has completed their analysis. Here is their synthesis:
+
+{synthesis}
+
+Based on this synthesis, provide a clear, direct answer to the user's question. You may:
+- Acknowledge the specialists' insights
+- Present the answer in your own words
+- Add brief context if helpful
+- Keep it concise and actionable
+
+Focus on answering the user's question, not describing the process."""
+
+        response = self.generate_response(prompt, stream=False)
+        return str(response)
     
     def _get_conversation_context(self, limit: int = 5) -> str:
         """Get recent conversation context.

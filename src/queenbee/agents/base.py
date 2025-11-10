@@ -66,6 +66,8 @@ class BaseAgent:
             prompt_file = self.config.agents.convergent.system_prompt_file
         elif self.agent_type == AgentType.CRITICAL:
             prompt_file = self.config.agents.critical.system_prompt_file
+        elif self.agent_type == AgentType.SUMMARIZER:
+            prompt_file = self.config.agents.summarizer.system_prompt_file
         else:
             raise ValueError(f"Unknown agent type: {self.agent_type}")
 

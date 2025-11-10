@@ -144,6 +144,9 @@ agents:
     system_prompt_file: ./prompts/convergent.md
   critical:
     system_prompt_file: ./prompts/critical.md
+  summarizer:
+    system_prompt_file: ./prompts/summarizer.md
+    max_iterations: 5
 
 consensus:
   max_rounds: 10

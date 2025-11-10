@@ -61,6 +61,7 @@ class AgentsConfig(BaseSettings):
     divergent: AgentPromptConfig
     convergent: AgentPromptConfig
     critical: AgentPromptConfig
+    summarizer: AgentPromptConfig
 
 
 class ConsensusConfig(BaseSettings):

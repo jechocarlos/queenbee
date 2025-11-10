@@ -19,6 +19,7 @@ class AgentType(str, Enum):
     DIVERGENT = "divergent"
     CONVERGENT = "convergent"
     CRITICAL = "critical"
+    SUMMARIZER = "summarizer"
 
 
 class AgentStatus(str, Enum):

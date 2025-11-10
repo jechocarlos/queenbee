@@ -147,9 +147,11 @@ class TestQueenAgentAdvanced:
         mock_chat_repo = MagicMock()
         queen_agent.chat_repo = mock_chat_repo
         
-        with patch.object(queen_agent, '_analyze_complexity', return_value=False):
-            with patch.object(queen_agent, 'generate_response', return_value="Response"):
-                queen_agent.process_request("Test question")
+        # Disable specialists to test simple path
+        queen_agent.enable_specialists = False
+        
+        with patch.object(queen_agent, 'generate_response', return_value="Response"):
+            queen_agent.process_request("Test question")
         
         # Should add messages to chat history
         assert mock_chat_repo.add_message.call_count >= 1

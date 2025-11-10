@@ -288,7 +288,7 @@ As the Queen orchestrator, provide a clear, actionable summary that:
 3. Highlights any critical concerns or trade-offs
 4. Gives a direct answer to the original question
 
-Keep it concise but comprehensive (2-3 paragraphs)."""
+KEEP IT CONCISE: Maximum 4-5 sentences. Be clear and actionable."""
 
             try:
                 summary = queen.generate_response(summary_prompt, stream=False)
@@ -387,7 +387,7 @@ Only contribute if you can add:
 - A different way of thinking about the problem
 - An unexplored aspect or dimension
 
-Be specific and concrete. Add genuine value, not repetition."""
+KEEP IT BRIEF: 2-3 sentences maximum. Be specific and concrete. Add genuine value, not repetition."""
 
         elif agent_name == "Convergent":
             prompt = f"""Original question: {user_input}
@@ -413,7 +413,7 @@ Only contribute if you can add:
 - Refined or prioritized recommendations based on new information
 - Clearer action items or implementation guidance
 
-Be specific about what you're adding beyond what's already been said."""
+KEEP IT BRIEF: 2-3 sentences maximum. Be specific about what you're adding beyond what's already been said."""
 
         else:  # Critical
             prompt = f"""Original question: {user_input}
@@ -439,7 +439,7 @@ Only contribute if you can add:
 - A logical inconsistency or flaw others missed
 - Important safeguards or considerations overlooked
 
-Be specific about the new concern or validation you're adding."""
+KEEP IT BRIEF: 2-3 sentences maximum. Be specific about the new concern or validation you're adding."""
 
         # Get response from agent
         try:

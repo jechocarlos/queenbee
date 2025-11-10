@@ -29,20 +29,19 @@ agents:
   
   divergent:
     system_prompt_file: ./prompts/divergent.md
-    max_iterations: 5
+    max_iterations: 10
   
   convergent:
     system_prompt_file: ./prompts/convergent.md
-    max_iterations: 5
+    max_iterations: 10
   
   critical:
     system_prompt_file: ./prompts/critical.md
-    max_iterations: 5
-
+    max_iterations: 10
 consensus:
   max_rounds: 10
   agreement_threshold: "all"
-  discussion_rounds: 3  # Number of rounds for iterative agent discussion
+  discussion_rounds: 10  # Number of rounds for iterative agent discussion
 
 logging:
   level: ${LOG_LEVEL:INFO}

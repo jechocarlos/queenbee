@@ -20,6 +20,9 @@ QueenBee is an intelligent agent orchestration system that dynamically spawns sp
 - **💬 Live Chat History**: View entire conversation with `history` command
 - **🔄 Async Worker Processes**: Specialists run in background for true parallelism
 - **🗄️ Persistent Memory**: PostgreSQL-backed agent state, tasks, and knowledge
+  - Robust connection management with automatic reconnection
+  - Transaction safety with commit/rollback
+  - Context manager support for clean resource handling
 - **🏠 Local LLM**: Powered by Ollama for privacy and control
 - **⏰ Activity-Based TTL**: Agents expire after inactivity, keeping system lean
 

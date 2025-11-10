@@ -186,6 +186,7 @@ class QueenAgent(BaseAgent):
         max_wait = 120  # 2 minutes
         start_time = time.time()
         displayed_contributions = 0  # Track what we've already shown
+        last_rolling_summary = ""  # Track last displayed rolling summary
         
         while time.time() - start_time < max_wait:
             task = self.task_repo.get_task(task_id)
@@ -236,6 +237,24 @@ class QueenAgent(BaseAgent):
                             console.print(f"[dim]{'─' * 60}[/dim]\n")
                         
                         displayed_contributions = len(contributions)
+                        
+                        # Check for updated rolling summary
+                        rolling_summary = current_results.get("rolling_summary", "")
+                        if rolling_summary and rolling_summary != last_rolling_summary:
+                            from rich.console import Console
+                            from rich.panel import Panel
+                            console = Console()
+                            
+                            console.print(Panel(
+                                f"[italic dim]{rolling_summary}[/italic dim]",
+                                title="[dim]💭 Rolling Summary[/dim]",
+                                border_style="dim",
+                                padding=(0, 1)
+                            ))
+                            console.print()
+                            
+                            last_rolling_summary = rolling_summary
+                        
                 except json.JSONDecodeError:
                     pass  # Wait for valid JSON
             

@@ -97,6 +97,68 @@ class SpecialistWorker:
         discussion = []
         stop_event = threading.Event()
         agent_status = {}  # Track if each agent is thinking or idle
+        rolling_summary = {"content": "", "last_update": 0}  # Track rolling summary
+        
+        def update_rolling_summary():
+            """Background thread that continuously updates the rolling summary."""
+            with self.db:
+                from queenbee.agents.queen import QueenAgent
+                queen = QueenAgent(self.session_id, self.config, self.db)
+                
+                try:
+                    while not stop_event.is_set():
+                        time.sleep(4)  # Update every 4 seconds
+                        
+                        with discussion_lock:
+                            current_discussion = discussion.copy()
+                            contrib_count = len(current_discussion)
+                        
+                        # Only update if there are new contributions
+                        if contrib_count > 0 and contrib_count != rolling_summary["last_update"]:
+                            logger.info(f"Updating rolling summary (contributions: {contrib_count})...")
+                            
+                            # Format discussion for summary
+                            discussion_text = []
+                            for i, contrib in enumerate(current_discussion, 1):
+                                agent = contrib["agent"]
+                                content = contrib["content"]
+                                discussion_text.append(f"{i}. {agent}: {content}")
+                            
+                            discussion_str = "\n\n".join(discussion_text)
+                            
+                            summary_prompt = f"""Question: "{user_input}"
+
+CURRENT DISCUSSION ({contrib_count} contributions so far):
+{discussion_str}
+
+Provide a BRIEF rolling summary (2-3 sentences) of:
+1. What has been covered so far
+2. Key insights emerging
+3. What direction the discussion is taking
+
+This is an ongoing discussion - focus on synthesis, not conclusion."""
+
+                            try:
+                                summary_response = queen.generate_response(summary_prompt, stream=False)
+                                with discussion_lock:
+                                    rolling_summary["content"] = str(summary_response)
+                                    rolling_summary["last_update"] = contrib_count
+                                    
+                                    # Store in task result
+                                    intermediate_result = {
+                                        "status": "in_progress",
+                                        "contributions": discussion.copy(),
+                                        "rolling_summary": rolling_summary["content"],
+                                        "task": user_input
+                                    }
+                                    self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
+                                
+                                logger.info("Rolling summary updated")
+                            except Exception as e:
+                                logger.error(f"Error updating rolling summary: {e}")
+                
+                finally:
+                    queen.terminate()
         
         def agent_worker(agent_name: str, agent_type: str):
             """Worker thread for a single agent - contributes whenever it has something to add."""
@@ -184,6 +246,14 @@ class SpecialistWorker:
                 finally:
                     agent.terminate()
         
+        # Start rolling summary thread
+        summary_thread = threading.Thread(
+            target=update_rolling_summary,
+            daemon=True
+        )
+        summary_thread.start()
+        logger.info("Started rolling summary thread")
+        
         # Start agent threads
         threads = []
         agents = [
@@ -237,16 +307,24 @@ class SpecialistWorker:
         for thread in threads:
             thread.join(timeout=5)
         
-        # Generate final summary from Queen
+        # Wait for summary thread
+        summary_thread.join(timeout=3)
+        
+        # Generate final comprehensive summary from Queen
         logger.info("Generating Queen's final summary...")
-        summary = self._generate_queen_summary(user_input, discussion)
+        final_summary = self._generate_queen_summary(user_input, discussion)
+        
+        # Get the last rolling summary
+        with discussion_lock:
+            last_rolling = rolling_summary["content"]
         
         return {
             "task": user_input,
             "context": context,
             "total_contributions": len(discussion),
             "contributions": discussion,
-            "summary": summary
+            "rolling_summary": last_rolling,  # Last rolling summary from live updates
+            "summary": final_summary  # Final comprehensive summary
         }
 
     def _generate_queen_summary(self, user_input: str, discussion: list[dict]) -> str:

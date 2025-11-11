@@ -7,7 +7,8 @@ import pytest
 
 from queenbee.agents.convergent import ConvergentAgent
 from queenbee.agents.critical import CriticalAgent
-from queenbee.config.loader import AgentsConfig, Config, ConsensusConfig, DatabaseConfig, OllamaConfig
+from queenbee.config.loader import (AgentsConfig, Config, ConsensusConfig,
+                                    DatabaseConfig, OllamaConfig)
 
 
 @pytest.fixture

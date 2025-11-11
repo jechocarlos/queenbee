@@ -118,13 +118,14 @@ class BaseAgent:
         """Record agent activity (resets TTL)."""
         self.agent_repo.update_agent_activity(self.agent_id)
 
-    def generate_response(self, prompt: str, temperature: float = 0.7, stream: bool = False) -> Union[str, Iterator[str]]:
+    def generate_response(self, prompt: str, temperature: float = 0.7, stream: bool = False, max_tokens: int | None = None) -> Union[str, Iterator[str]]:
         """Generate response using Ollama.
 
         Args:
             prompt: User prompt.
             temperature: Sampling temperature.
             stream: Whether to enable streaming (returns iterator if True).
+            max_tokens: Maximum number of tokens to generate.
 
         Returns:
             Generated response (str) or iterator of response chunks (Iterator[str]).
@@ -135,6 +136,7 @@ class BaseAgent:
             system=self.system_prompt,
             temperature=temperature,
             stream=stream,
+            max_tokens=max_tokens,
         )
         return response
 

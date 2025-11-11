@@ -29,27 +29,31 @@ agents:
   
   divergent:
     system_prompt_file: ./prompts/divergent.md
-    max_iterations: 10
+    max_iterations: 25
+    max_tokens: 100  # Maximum tokens per contribution
   
   convergent:
     system_prompt_file: ./prompts/convergent.md
-    max_iterations: 10
+    max_iterations: 25
+    max_tokens: 100  # Maximum tokens per contribution
   
   critical:
     system_prompt_file: ./prompts/critical.md
-    max_iterations: 10
+    max_iterations: 25
+    max_tokens: 100  # Maximum tokens per contribution
   
   summarizer:
     system_prompt_file: ./prompts/summarizer.md
-    max_iterations: 5
+    max_iterations: 25
+    max_tokens: 0  # No limit for summarizer
 
 consensus:
-  max_rounds: 10
+  max_rounds: 20
   agreement_threshold: "all"
-  discussion_rounds: 10  # Number of rounds for iterative agent discussion
+  discussion_rounds: 20  # Number of rounds for iterative agent discussion
   specialist_timeout_seconds: 300  # Maximum wait time for specialists (5 minutes)
 
 logging:
-  level: ${LOG_LEVEL:ERROR}
+  level: ${LOG_LEVEL:INFO}
   format: json
   output: stdout

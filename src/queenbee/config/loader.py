@@ -50,6 +50,7 @@ class AgentPromptConfig(BaseSettings):
     system_prompt_file: str
     max_iterations: int = Field(default=5)
     complexity_threshold: str = Field(default="auto")
+    max_tokens: int = Field(default=0)  # 0 means no limit
 
 
 class AgentsConfig(BaseSettings):

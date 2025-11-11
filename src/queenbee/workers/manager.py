@@ -130,12 +130,13 @@ class SpecialistWorker:
                                     rolling_summary["content"] = str(summary_response)
                                     rolling_summary["last_update"] = contrib_count
                                     
-                                    # Store in task result
+                                    # Store in task result with agent status
                                     intermediate_result = {
                                         "status": "in_progress",
                                         "contributions": discussion.copy(),
                                         "rolling_summary": rolling_summary["content"],
-                                        "task": user_input
+                                        "task": user_input,
+                                        "agent_status": agent_status.copy()
                                     }
                                     self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
                                 
@@ -210,11 +211,12 @@ class SpecialistWorker:
                                 with discussion_lock:
                                     discussion.append(contribution)
                                     
-                                    # Store intermediate result
+                                    # Store intermediate result with agent status
                                     intermediate_result = {
                                         "status": "in_progress",
                                         "contributions": discussion.copy(),
-                                        "task": user_input
+                                        "task": user_input,
+                                        "agent_status": agent_status.copy()
                                     }
                                     self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
                                 
@@ -436,7 +438,7 @@ Only contribute if you can add:
 - A different way of thinking about the problem
 - An unexplored aspect or dimension
 
-KEEP IT BRIEF: 2-3 sentences maximum. Be specific and concrete. Add genuine value, not repetition."""
+KEEP IT BRIEF: Maximum 100 tokens (roughly 1-2 sentences). Be specific and concrete. Add genuine value, not repetition."""
 
         elif agent_name == "Convergent":
             prompt = f"""Original question: {user_input}
@@ -462,7 +464,7 @@ Only contribute if you can add:
 - Refined or prioritized recommendations based on new information
 - Clearer action items or implementation guidance
 
-KEEP IT BRIEF: 2-3 sentences maximum. Be specific about what you're adding beyond what's already been said."""
+KEEP IT BRIEF: Maximum 100 tokens (roughly 1-2 sentences). Be specific about what you're adding beyond what's already been said."""
 
         else:  # Critical
             prompt = f"""Original question: {user_input}
@@ -488,11 +490,24 @@ Only contribute if you can add:
 - A logical inconsistency or flaw others missed
 - Important safeguards or considerations overlooked
 
-KEEP IT BRIEF: 2-3 sentences maximum. Be specific about the new concern or validation you're adding."""
+KEEP IT BRIEF: Maximum 100 tokens (roughly 1-2 sentences). Be specific about the new concern or validation you're adding."""
 
-        # Get response from agent
+        # Get max_tokens from config based on agent type
+        max_tokens = 0  # default no limit
+        if agent_name == "Divergent":
+            max_tokens = self.config.agents.divergent.max_tokens
+        elif agent_name == "Convergent":
+            max_tokens = self.config.agents.convergent.max_tokens
+        elif agent_name == "Critical":
+            max_tokens = self.config.agents.critical.max_tokens
+        
+        # Get response from agent with max_tokens from config
         try:
-            response = agent.generate_response(prompt, stream=False)
+            response = agent.generate_response(
+                prompt, 
+                stream=False,
+                max_tokens=max_tokens if max_tokens > 0 else None
+            )
             return response if response else None
         except Exception as e:
             logger.error(f"{agent_name} error: {e}")

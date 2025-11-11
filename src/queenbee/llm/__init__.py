@@ -31,6 +31,7 @@ class OllamaClient:
         system: str | None = None,
         temperature: float = 0.7,
         stream: bool = False,
+        max_tokens: int | None = None,
     ) -> str | Iterator[str]:
         """Generate text completion.
 
@@ -39,6 +40,7 @@ class OllamaClient:
             system: Optional system prompt.
             temperature: Sampling temperature.
             stream: Whether to stream the response.
+            max_tokens: Maximum number of tokens to generate.
 
         Returns:
             Generated text or iterator of text chunks.
@@ -52,6 +54,9 @@ class OllamaClient:
                 "temperature": temperature,
             },
         }
+
+        if max_tokens is not None:
+            payload["options"]["num_predict"] = max_tokens
 
         if system:
             payload["system"] = system

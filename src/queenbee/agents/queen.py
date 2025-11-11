@@ -155,8 +155,12 @@ class QueenAgent(BaseAgent):
             else:
                 return placeholder_response + str(direct_response)
         
-        # Create task for specialists with iterative discussion
+        # Create task for specialists with LIVE CHATROOM VIEW
         max_rounds = getattr(self.config.consensus, 'discussion_rounds', 3)
+        
+        # Use the new live discussion viewer
+        response = self._spawn_specialists_with_live_view(user_input, max_rounds=max_rounds)
+        return response
         
         task_data = {
             "type": "collaborative_discussion",
@@ -352,6 +356,86 @@ class QueenAgent(BaseAgent):
         logger.warning(f"Task {task_id} timed out, falling back to direct response")
         return "I delegated this to my specialist team, but they're taking longer than expected. Let me provide a direct answer:\n\n" + str(self.generate_response(user_input, stream=False))
     
+    def _spawn_specialists_with_live_view(self, user_input: str, max_rounds: int = 3) -> str:
+        """Spawn specialists and show live chatroom-style discussion.
+        
+        This provides a real-time view of the agents thinking and contributing,
+        making the discussion feel like a live chatroom.
+        
+        Args:
+            user_input: User's question/request.
+            max_rounds: Maximum discussion rounds.
+            
+        Returns:
+            Final Queen response incorporating specialist insights.
+        """
+        from rich.console import Console
+        from rich.panel import Panel
+        from queenbee.cli.live_discussion import LiveDiscussionViewer
+        
+        # Create task for specialists
+        task_data = {
+            "type": "collaborative_discussion",
+            "input": user_input,
+            "context": self._get_conversation_context(),
+            "max_rounds": max_rounds
+        }
+        
+        task_description = json.dumps(task_data)
+        assigned_to = [uuid4(), uuid4(), uuid4()]  # Divergent, Convergent, Critical
+        
+        logger.info(f"Creating task for specialists with live view...")
+        task_id = self.task_repo.create_task(
+            session_id=self.session_id,
+            assigned_by=self.agent_id,
+            assigned_to=assigned_to,
+            description=task_description
+        )
+        
+        console = Console()
+        console.print("\n[bold yellow]🐝 Starting Live Collaborative Discussion...[/bold yellow]\n")
+        console.print("[dim]Watch the agents think and contribute in real-time![/dim]\n")
+        
+        # Create live viewer and watch the discussion
+        viewer = LiveDiscussionViewer(
+            console=console,
+            task_repo=self.task_repo,
+            task_id=task_id
+        )
+        
+        # Wait a moment for worker to start processing
+        time.sleep(1)
+        
+        # Watch discussion with live updates
+        max_wait = getattr(self.config.consensus, 'specialist_timeout_seconds', 300)
+        results = viewer.watch_discussion(timeout=max_wait)
+        
+        # Check if we got valid results
+        if "error" in results:
+            logger.error(f"Discussion error: {results['error']}")
+            return "The specialist team encountered an issue. Let me provide a direct answer:\n\n" + str(self.generate_response(user_input, stream=False))
+        
+        # Get the summary from results
+        summary = results.get("summary", results.get("rolling_summary", ""))
+        
+        if summary:
+            # Generate Queen's final response
+            queen_response = self._generate_final_response(user_input, summary)
+            
+            console.print("\n")
+            console.print(Panel(
+                f"[bold cyan]{queen_response}[/bold cyan]",
+                title="[bold cyan]🐝 QUEEN'S FINAL RESPONSE[/bold cyan]",
+                border_style="cyan",
+                padding=(1, 2)
+            ))
+            console.print()
+            
+            return queen_response
+        else:
+            total = results.get("total_contributions", 0)
+            return f"Discussion complete with {total} contributions from the specialist team."
+
     def _generate_final_response(self, user_input: str, synthesis: str) -> str:
         """Generate Queen's final response based on the synthesis from SummarizerAgent.
         

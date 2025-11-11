@@ -30,17 +30,17 @@ agents:
   divergent:
     system_prompt_file: ./prompts/divergent.md
     max_iterations: 25
-    max_tokens: 100  # Maximum tokens per contribution
+    max_tokens: 500  # Maximum tokens per contribution
   
   convergent:
     system_prompt_file: ./prompts/convergent.md
     max_iterations: 25
-    max_tokens: 100  # Maximum tokens per contribution
+    max_tokens: 500  # Maximum tokens per contribution
   
   critical:
     system_prompt_file: ./prompts/critical.md
     max_iterations: 25
-    max_tokens: 100  # Maximum tokens per contribution
+    max_tokens: 500  # Maximum tokens per contribution
   
   summarizer:
     system_prompt_file: ./prompts/summarizer.md

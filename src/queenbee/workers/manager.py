@@ -413,8 +413,14 @@ class SpecialistWorker:
         # Format discussion history with analysis
         discussion_text = self._format_discussion_for_analysis(discussion)
         
+        # Get max_tokens from config for token limit instruction
+        max_tokens_divergent = self.config.agents.divergent.max_tokens
+        max_tokens_convergent = self.config.agents.convergent.max_tokens
+        max_tokens_critical = self.config.agents.critical.max_tokens
+        
         # Build agent-specific prompt with explicit instruction to check for new value
         if agent_name == "Divergent":
+            token_instruction = f"Maximum {max_tokens_divergent} tokens" if max_tokens_divergent > 0 else "Keep it concise"
             prompt = f"""Original question: {user_input}
 
 Discussion so far:
@@ -438,9 +444,10 @@ Only contribute if you can add:
 - A different way of thinking about the problem
 - An unexplored aspect or dimension
 
-KEEP IT BRIEF: Maximum 100 tokens (roughly 1-2 sentences). Be specific and concrete. Add genuine value, not repetition."""
+KEEP IT BRIEF: {token_instruction}. Be specific and concrete. Add genuine value, not repetition."""
 
         elif agent_name == "Convergent":
+            token_instruction = f"Maximum {max_tokens_convergent} tokens" if max_tokens_convergent > 0 else "Keep it concise"
             prompt = f"""Original question: {user_input}
 
 Discussion so far:
@@ -464,13 +471,16 @@ Only contribute if you can add:
 - Refined or prioritized recommendations based on new information
 - Clearer action items or implementation guidance
 
-KEEP IT BRIEF: Maximum 100 tokens (roughly 1-2 sentences). Be specific about what you're adding beyond what's already been said."""
+KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about what you're adding beyond what's already been said."""
 
         else:  # Critical
+            token_instruction = f"Maximum {max_tokens_critical} tokens" if max_tokens_critical > 0 else "Keep it concise"
             prompt = f"""Original question: {user_input}
 
 Discussion so far:
 {discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
+
+You are the Critical validator. Your role is to identify risks, flaws, and validate solutions.
 
 You are the Critical validator. Your role is to identify risks, flaws, and validate solutions.
 
@@ -490,7 +500,7 @@ Only contribute if you can add:
 - A logical inconsistency or flaw others missed
 - Important safeguards or considerations overlooked
 
-KEEP IT BRIEF: Maximum 100 tokens (roughly 1-2 sentences). Be specific about the new concern or validation you're adding."""
+KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about the new concern or validation you're adding."""
 
         # Get max_tokens from config based on agent type
         max_tokens = 0  # default no limit

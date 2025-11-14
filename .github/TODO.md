@@ -1,7 +1,7 @@
 # QueenBee - Development TODO
 
-**Last Updated**: November 10, 2025  
-**Current Phase**: Phase 3 - Polish
+**Last Updated**: November 14, 2025  
+**Current Phase**: Phase 3 - Polish & Optimization
 
 ---
 
@@ -237,6 +237,12 @@
 - [ ] Contributing guidelines
 
 ### 7. User Experience Enhancements
+- [x] Add real-time live discussion viewer
+- [x] Show agent contributions as they happen
+- [x] Implement word wrapping for long messages
+- [x] Remove message truncation
+- [x] Smart agent status updates (only when changed)
+- [x] Prevent status updates from cutting off responses
 - [ ] Add progress indicator during initial agent thinking
 - [ ] Show estimated time remaining for discussion
 - [ ] Add command to view discussion history
@@ -246,6 +252,10 @@
 - [ ] Add stats command to show session statistics
 
 ### 8. Code Quality & Maintenance
+- [x] Remove unused layout rendering methods
+- [x] Clean up temporary test files
+- [x] Remove unused imports
+- [x] Code cleanup and refactoring
 - [ ] Add type hints to remaining functions
 - [ ] Add docstrings to all public methods
 - [ ] Code coverage analysis (aim for >80%)
@@ -300,12 +310,13 @@
 
 ### ✅ Phase 1 & 2 Achievements
 - **Async Parallel Discussion**: Specialists work in independent threads, contribute when they have value
-- **Real-Time Display**: Contributions shown immediately with color coding (🔵🟢🔴)
-- **Rolling Summary System**: Live 2-3 sentence summaries every 4 seconds during discussion
+- **Real-Time Live Discussion Viewer**: Direct terminal printing with word wrapping and no truncation
+- **Rolling Summary System**: Live 4-6 sentence summaries every 1.5 seconds during discussion
 - **Intelligent Contributions**: Agents analyze existing discussion to avoid repetition
 - **Configurable Timeouts**: 5-minute default, adjustable via config
-- **Final Summary Integration**: Builds upon rolling summary insights for coherent synthesis
-- **Rich Console UI**: Professional formatting with panels and color-coded output
+- **Final Summary Integration**: 6-10 sentence synthesis building upon rolling summary insights
+- **Clean Terminal UI**: Simple, reliable printing with color-coded agents
+- **Smart Status Updates**: Agent activity only shown when status changes
 - **Task Queue System**: Database-backed async job processing
 - **Worker Process Management**: Background workers handle specialist execution
 - **Streaming Support**: Queen responses can stream in real-time

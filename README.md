@@ -3,7 +3,7 @@
 **Meta-Agent Orchestration System with Specialized Thinking Agents**
 
 ![Tests](https://img.shields.io/badge/tests-223%20passed%2C%202%20skipped-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-68%25-yellow)
+![Coverage](https://img.shields.io/badge/coverage-70%25-yellow)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
@@ -225,8 +225,17 @@ queenbee/
 
 ### Running Tests
 ```bash
-pytest
+pytest                              # Run all tests
+pytest -v                          # Verbose output
+pytest --cov                       # With coverage report
+pytest tests/test_agents.py        # Specific test file
 ```
+
+**Latest Test Results:**
+- ✅ 223 tests passed
+- ⚠️ 2 tests skipped (environment-dependent)
+- 📊 70% code coverage
+- ⏱️ Completed in 173 seconds (2m 53s)
 
 ### Code Quality
 ```bash

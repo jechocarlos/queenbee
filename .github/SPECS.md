@@ -643,13 +643,16 @@ docker-compose -f docker-compose.remote.yml up -d
 
 **Document Control**:
 - **Created**: November 9, 2025
-- **Last Modified**: November 10, 2025
+- **Last Modified**: November 14, 2025
 - **Next Review**: After Phase 3 completion
 
 **Major Changes in v2.0**:
 - Implemented async parallel discussion architecture
-- Added real-time contribution display with color coding
-- Implemented rolling summary system (live updates every 4 seconds)
+- Added real-time live discussion viewer with terminal output
+- Implemented rolling summary system (live updates every 1.5 seconds)
 - Made specialist timeout configurable (default 5 minutes)
 - Enhanced final summary to build upon rolling summary insights
 - Replaced sequential rounds with intelligent contribution logic
+- Simplified UI to direct terminal printing (removed complex Rich layouts)
+- Added word wrapping and no truncation for messages
+- Implemented smart agent status updates (only on change)

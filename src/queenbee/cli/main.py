@@ -155,9 +155,9 @@ def main() -> int:
 
         # Check LLM availability based on provider
         if using_openrouter:
-            from queenbee.llm.openrouter import OpenRouterClient
             from queenbee.db.models import RateLimitRepository
-            
+            from queenbee.llm.openrouter import OpenRouterClient
+
             # Check for rate limit
             db = DatabaseManager(config.database)
             rate_limit_repo = RateLimitRepository(db)

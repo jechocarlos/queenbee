@@ -180,8 +180,14 @@ class OpenRouterClient:
                     
                     def stream_generator():
                         for chunk in response:  # type: ignore
-                            if chunk.choices and chunk.choices[0].delta.content:
-                                yield chunk.choices[0].delta.content
+                            if chunk.choices and chunk.choices[0].delta:
+                                delta = chunk.choices[0].delta
+                                # Try content first (standard models)
+                                if delta.content:
+                                    yield delta.content
+                                # Fall back to reasoning (reasoning models)
+                                elif hasattr(delta, 'reasoning') and delta.reasoning:
+                                    yield delta.reasoning
                     
                     return stream_generator()
                 else:
@@ -193,7 +199,15 @@ class OpenRouterClient:
                         max_tokens=max_tokens,
                         stream=False,
                     )
-                    return response.choices[0].message.content or ""
+                    # Handle both standard and reasoning models
+                    message = response.choices[0].message
+                    content = message.content or ""
+                    
+                    # For reasoning models (like gpt-oss-20b), extract from reasoning field
+                    if not content and hasattr(message, 'reasoning') and message.reasoning:
+                        content = message.reasoning
+                    
+                    return content
             except RateLimitError as e:
                 # Extract rate limit reset time from response headers
                 if hasattr(e, 'response') and e.response is not None:
@@ -260,8 +274,14 @@ class OpenRouterClient:
                     
                     def stream_generator():
                         for chunk in response:  # type: ignore
-                            if chunk.choices and chunk.choices[0].delta.content:
-                                yield chunk.choices[0].delta.content
+                            if chunk.choices and chunk.choices[0].delta:
+                                delta = chunk.choices[0].delta
+                                # Try content first (standard models)
+                                if delta.content:
+                                    yield delta.content
+                                # Fall back to reasoning (reasoning models)
+                                elif hasattr(delta, 'reasoning') and delta.reasoning:
+                                    yield delta.reasoning
                     
                     return stream_generator()
                 else:
@@ -272,7 +292,15 @@ class OpenRouterClient:
                         max_tokens=max_tokens,
                         stream=False,
                     )
-                    return response.choices[0].message.content or ""
+                    # Handle both standard and reasoning models
+                    message = response.choices[0].message
+                    content = message.content or ""
+                    
+                    # For reasoning models (like gpt-oss-20b), extract from reasoning field
+                    if not content and hasattr(message, 'reasoning') and message.reasoning:
+                        content = message.reasoning
+                    
+                    return content
             except RateLimitError as e:
                 # Extract rate limit reset time from response headers
                 if hasattr(e, 'response') and e.response is not None:

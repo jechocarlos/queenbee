@@ -155,21 +155,10 @@ def main() -> int:
 
         # Check LLM availability based on provider
         if using_openrouter:
-            from queenbee.db.models import RateLimitRepository
             from queenbee.llm.openrouter import OpenRouterClient
 
-            # Check for rate limit
+            # Initialize database and OpenRouter client
             db = DatabaseManager(config.database)
-            rate_limit_repo = RateLimitRepository(db)
-            if rate_limit_repo.is_rate_limited('openrouter', config.openrouter.model):
-                reset_ms = rate_limit_repo.get_rate_limit_reset('openrouter', config.openrouter.model)
-                import time
-                reset_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(reset_ms / 1000.0)) if reset_ms else 'unknown'
-                console.print(
-                    f"[red]Error: OpenRouter rate limit active until {reset_time}[/red]\n"
-                    "[yellow]Please wait for the rate limit to reset, or add credits to your account.[/yellow]"
-                )
-                return 1
             
             # Test OpenRouter client initialization
             try:

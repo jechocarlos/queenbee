@@ -20,6 +20,7 @@ class AgentType(str, Enum):
     CONVERGENT = "convergent"
     CRITICAL = "critical"
     SUMMARIZER = "summarizer"
+    WEB_SEARCHER = "web_searcher"
 
 
 class AgentStatus(str, Enum):

@@ -36,43 +36,44 @@ inference_packs:
       provider: openrouter
       extract_reasoning: true
       temperature: 0.5
-      max_tokens: 500
+      max_tokens: 2000
     
     standard:
       model: openai/gpt-oss-20b
       provider: openrouter
       extract_reasoning: false  # Use standard content field
       temperature: 0.5
-      max_tokens: 500
+      max_tokens: 2000
     
     web_search:
       model: openai/gpt-4o-mini-search-preview
       provider: openrouter
       extract_reasoning: false
       temperature: 0.1
-      max_tokens: 800
+      max_tokens: 5000
     
     fast:
       model: meta-llama/llama-3.1-8b-instruct:free
       provider: openrouter
       extract_reasoning: false
       temperature: 0.3
-      max_tokens: 300
+      max_tokens: 2000
     
     local:
       model: gpt-oss-20b
       provider: ollama
       extract_reasoning: false
       temperature: 0.7
-      max_tokens: 500
+      max_tokens: 2000
 
 # Agent Inference Assignments: Map agents to inference packs
 agent_inference:
   queen: standard
-  divergent: web_search
+  divergent: reasoning
   convergent: reasoning
   critical: standard
   summarizer: standard
+  web_searcher: web_search  # Uses search-capable model
 
 agents:
   ttl:
@@ -88,27 +89,30 @@ agents:
   divergent:
     system_prompt_file: ./prompts/divergent.md
     max_iterations: 25
-    max_tokens: 500  # Maximum tokens per contribution
+    max_tokens: 2000  # Maximum tokens per contribution
   
   convergent:
     system_prompt_file: ./prompts/convergent.md
     max_iterations: 25
-    max_tokens: 500  # Maximum tokens per contribution
+    max_tokens: 2000  # Maximum tokens per contribution
   
   critical:
     system_prompt_file: ./prompts/critical.md
     max_iterations: 25
-    max_tokens: 500  # Maximum tokens per contribution
+    max_tokens: 2000  # Maximum tokens per contribution
   
   summarizer:
     system_prompt_file: ./prompts/summarizer.md
     max_iterations: 25
-    max_tokens: 0  # No limit for summarizer
-
+    max_tokens: 2000  # No limit for summarizer
+  
+  web_searcher:
+    system_prompt_file: ./prompts/web_searcher.md
+    max_tokens: 5000  # More tokens for search results
 consensus:
-  max_rounds: 20
+  max_rounds: 30
   agreement_threshold: "all"
-  discussion_rounds: 20  # Number of rounds for iterative agent discussion
+  discussion_rounds: 30  # Number of rounds for iterative agent discussion
   specialist_timeout_seconds: 300  # Maximum wait time for specialists (5 minutes)
   summary_interval_seconds: 10  # Update rolling summary every 10 seconds
 

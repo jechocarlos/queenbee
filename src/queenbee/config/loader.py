@@ -77,6 +77,7 @@ class AgentInferenceConfig(BaseSettings):
     convergent: str = Field(default="standard", description="Inference pack name for convergent agent")
     critical: str = Field(default="standard", description="Inference pack name for critical agent")
     summarizer: str = Field(default="standard", description="Inference pack name for summarizer agent")
+    web_searcher: str = Field(default="web_search", description="Inference pack name for web searcher agent")
 
 
 class AgentTTLConfig(BaseSettings):
@@ -105,6 +106,7 @@ class AgentsConfig(BaseSettings):
     convergent: AgentPromptConfig
     critical: AgentPromptConfig
     summarizer: AgentPromptConfig
+    web_searcher: AgentPromptConfig
 
 
 class ConsensusConfig(BaseSettings):

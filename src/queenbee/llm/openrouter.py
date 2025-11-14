@@ -246,9 +246,22 @@ class OpenRouterClient:
                     logger.error(f"Model: {self.model_id}, Base URL: {self.base_url}")
                     raise
             except Exception as e:
-                logger.error(f"OpenRouter API error: {e}", exc_info=True)
+                # Try to get raw response for debugging JSON decode errors
+                error_details = str(e)
+                if 'JSONDecodeError' in str(type(e).__name__) or 'Expecting value' in str(e):
+                    logger.error(f"OpenRouter returned invalid JSON response")
+                    # Try to extract response body if available
+                    if hasattr(e, '__cause__') and hasattr(e.__cause__, 'response'):
+                        try:
+                            raw_response = e.__cause__.response.text
+                            logger.error(f"Raw response (first 500 chars): {raw_response[:500]}")
+                        except:
+                            pass
+                
+                logger.error(f"OpenRouter API error: {error_details}")
                 logger.error(f"Model: {self.model_id}, Base URL: {self.base_url}")
-                logger.error(f"Messages: {messages}")
+                logger.error(f"Temperature: {temperature}, Max tokens: {max_tokens}")
+                logger.error(f"Message count: {len(messages)}, Total message length: {sum(len(str(m)) for m in messages)}")
                 raise
         
         # Should never reach here due to raise in exception handlers
@@ -338,7 +351,21 @@ class OpenRouterClient:
                     logger.error(f"Rate limit exceeded after {self.max_retries} attempts")
                     raise
             except Exception as e:
-                logger.error(f"OpenRouter API error: {e}")
+                # Try to get raw response for debugging JSON decode errors
+                error_details = str(e)
+                if 'JSONDecodeError' in str(type(e).__name__) or 'Expecting value' in str(e):
+                    logger.error(f"OpenRouter returned invalid JSON response in chat()")
+                    # Try to extract response body if available
+                    if hasattr(e, '__cause__') and hasattr(e.__cause__, 'response'):
+                        try:
+                            raw_response = e.__cause__.response.text
+                            logger.error(f"Raw response (first 500 chars): {raw_response[:500]}")
+                        except:
+                            pass
+                
+                logger.error(f"OpenRouter API error: {error_details}")
+                logger.error(f"Model: {self.model_id}, Temperature: {temperature}, Max tokens: {max_tokens}")
+                logger.error(f"Message count: {len(messages)}")
                 raise
         
         return ""

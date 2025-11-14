@@ -149,12 +149,12 @@ def main() -> int:
             console.print(f"[dim]✓ Inference packs: {len(config.inference_packs.packs)} configured[/dim]")
             
             # Show all agent assignments
-            for agent_type in ['queen', 'divergent', 'convergent', 'critical', 'summarizer']:
+            for agent_type in ['queen', 'divergent', 'convergent', 'critical', 'summarizer', 'web_searcher']:
                 pack_name = getattr(config.agent_inference, agent_type, 'standard')
                 pack = config.inference_packs.packs.get(pack_name)
                 if pack:
                     model_short = pack.model.split('/')[-1] if '/' in pack.model else pack.model
-                    console.print(f"[dim]  {agent_type:11} → {model_short}[/dim]")
+                    console.print(f"[dim]  {agent_type:12} → {model_short}[/dim]")
         elif using_openrouter:
             console.print(f"[dim]✓ Provider: OpenRouter[/dim]")
             console.print(f"[dim]✓ Default model: {config.openrouter.model}[/dim]")

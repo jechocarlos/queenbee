@@ -12,6 +12,7 @@ from rich.live import Live
 from rich.logging import RichHandler
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -136,85 +137,117 @@ def main() -> int:
         # Check if using OpenRouter
         using_openrouter = os.environ.get('QUEENBEE_USE_OPENROUTER') == '1'
         
-        # Show key config values for debugging
-        if using_openrouter:
-            console.print(f"[dim]✓ Provider: OpenRouter[/dim]")
-            console.print(f"[dim]✓ Model: {config.openrouter.model}[/dim]")
-            console.print(f"[dim]✓ Base URL: {config.openrouter.base_url}[/dim]")
-        else:
-            console.print(f"[dim]✓ Provider: Ollama[/dim]")
-            console.print(f"[dim]✓ Ollama model: {config.ollama.model}[/dim]")
-            console.print(f"[dim]✓ Ollama host: {config.ollama.host}[/dim]")
+        # Show key config values
         console.print(f"[dim]✓ Database: {config.database.host}:{config.database.port}/{config.database.name}[/dim]")
         console.print(f"[dim]✓ Log level: {config.logging.level}[/dim]")
         
-        setup_logging(config.logging.level)
-
-        logger = logging.getLogger(__name__)
-        logger.info("Starting QueenBee")
-
-        # Check LLM availability based on provider
-        if using_openrouter:
-            from queenbee.llm.openrouter import OpenRouterClient
-
-            # Initialize database and OpenRouter client
-            db = DatabaseManager(config.database)
+        # Show inference pack configuration
+        if config.inference_packs and config.inference_packs.packs:
+            console.print(f"[dim]✓ Inference packs: {len(config.inference_packs.packs)} configured[/dim]")
             
-            # Test OpenRouter client initialization
-            try:
-                llm_client = OpenRouterClient(config.openrouter, db)
-                logger.info(f"Connected to OpenRouter at {config.openrouter.base_url}")
-            except ValueError as e:
-                console.print(
-                    f"[red]Error: {e}[/red]\n"
-                    "[yellow]Please set OPENROUTER_API_KEY in your .env file[/yellow]"
-                )
-                return 1
+            # Show all agent assignments
+            for agent_type in ['queen', 'divergent', 'convergent', 'critical', 'summarizer']:
+                pack_name = getattr(config.agent_inference, agent_type, 'standard')
+                pack = config.inference_packs.packs.get(pack_name)
+                if pack:
+                    model_short = pack.model.split('/')[-1] if '/' in pack.model else pack.model
+                    console.print(f"[dim]  {agent_type:11} → {model_short}[/dim]")
+        elif using_openrouter:
+            console.print(f"[dim]✓ Provider: OpenRouter[/dim]")
+            console.print(f"[dim]✓ Default model: {config.openrouter.model}[/dim]")
         else:
-            # Check Ollama availability
-            from queenbee.llm import OllamaClient
-            ollama = OllamaClient(config.ollama)
-            if not ollama.is_available():
+            console.print(f"[dim]✓ Provider: Ollama[/dim]")
+            console.print(f"[dim]✓ Default model: {config.ollama.model}[/dim]")
+        
+        console.print()  # Add spacing
+        
+        # Show progress during initialization
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=True
+        ) as progress:
+            task = progress.add_task("[cyan]Initializing system...", total=None)
+            
+            setup_logging(config.logging.level)
+
+            logger = logging.getLogger(__name__)
+            logger.info("Starting QueenBee")
+
+            # Check LLM availability based on provider
+            progress.update(task, description="[cyan]Connecting to LLM provider...")
+            if using_openrouter:
+                from queenbee.llm.openrouter import OpenRouterClient
+
+                # Initialize database and OpenRouter client
+                db = DatabaseManager(config.database)
+                
+                # Test OpenRouter client initialization
+                try:
+                    llm_client = OpenRouterClient(config.openrouter, db)
+                    logger.info(f"Connected to OpenRouter at {config.openrouter.base_url}")
+                except ValueError as e:
+                    progress.stop()
+                    console.print(
+                        f"[red]Error: {e}[/red]\n"
+                        "[yellow]Please set OPENROUTER_API_KEY in your .env file[/yellow]"
+                    )
+                    return 1
+            else:
+                # Check Ollama availability
+                from queenbee.llm import OllamaClient
+                ollama = OllamaClient(config.ollama)
+                if not ollama.is_available():
+                    progress.stop()
+                    console.print(
+                        "[red]Error: Ollama server is not available[/red]\n"
+                        f"[yellow]Please ensure Ollama is running at {config.ollama.host}[/yellow]\n"
+                        "[dim]Run: docker-compose -f docker-compose.local.yml up -d[/dim]"
+                    )
+                    return 1
+
+                logger.info(f"Connected to Ollama at {config.ollama.host}")
+                db = DatabaseManager(config.database)
+            
+            progress.update(task, description="[cyan]Connecting to database...")
+            try:
+                db.connect()
+                logger.info("Connected to database")
+            except Exception as e:
+                progress.stop()
+                console.print(f"[red]Error: Failed to connect to database: {e}[/red]")
                 console.print(
-                    "[red]Error: Ollama server is not available[/red]\n"
-                    f"[yellow]Please ensure Ollama is running at {config.ollama.host}[/yellow]\n"
-                    "[dim]Run: docker-compose -f docker-compose.local.yml up -d[/dim]"
+                    "[yellow]Please ensure PostgreSQL is running and migrations are applied.[/yellow]\n"
+                    "[dim]Run: python scripts/migrate.py[/dim]"
                 )
                 return 1
 
-            logger.info(f"Connected to Ollama at {config.ollama.host}")
-            db = DatabaseManager(config.database)
+            # Start session
+            progress.update(task, description="[cyan]Starting session...")
+            with SessionManager(db) as session_mgr:
+                session_id = session_mgr.current_session_id
+                if session_id is None:
+                    progress.stop()
+                    console.print("[red]✗ Failed to create session[/red]")
+                    return 1
+                
+                # Initialize worker manager and start worker for this session
+                progress.update(task, description="[cyan]Starting specialist workers...")
+                worker_mgr = WorkerManager(config)
+                worker_mgr.start_worker(session_id)
+                
+                # Initialize Queen agent and chat repository
+                progress.update(task, description="[cyan]Initializing Queen agent...")
+                queen = QueenAgent(
+                    session_id=session_id,
+                    config=config,
+                    db=db,
+                )
+                chat_repo = ChatRepository(db)
         
-        try:
-            db.connect()
-            logger.info("Connected to database")
-        except Exception as e:
-            console.print(f"[red]Error: Failed to connect to database: {e}[/red]")
-            console.print(
-                "[yellow]Please ensure PostgreSQL is running and migrations are applied.[/yellow]\n"
-                "[dim]Run: python scripts/migrate.py[/dim]"
-            )
-            return 1
-
-        # Start session
-        with SessionManager(db) as session_mgr:
-            session_id = session_mgr.current_session_id
-            if session_id is None:
-                console.print("[red]✗ Failed to create session[/red]")
-                return 1
-            
-            # Initialize worker manager and start worker for this session
-            worker_mgr = WorkerManager(config)
-            worker_mgr.start_worker(session_id)
-            console.print("[green]✓ Specialist worker process started[/green]")
-            
-            # Initialize Queen agent and chat repository
-            queen = QueenAgent(
-                session_id=session_id,
-                config=config,
-                db=db,
-            )
-            chat_repo = ChatRepository(db)
+            # Progress complete - show ready state
+            console.print()  # Add spacing
 
             # Print banner
             print_banner()

@@ -22,6 +22,11 @@ openrouter:
   timeout: 300
   base_url: https://openrouter.ai/api/v1
   verify_ssl: false  # Disable SSL verification (for testing with corporate proxies)
+  
+  # Rate limiting (free tier: 16 requests/min)
+  requests_per_minute: 16
+  max_retries: 3
+  retry_delay: 5  # seconds
 
 agents:
   ttl:
@@ -59,6 +64,7 @@ consensus:
   agreement_threshold: "all"
   discussion_rounds: 20  # Number of rounds for iterative agent discussion
   specialist_timeout_seconds: 300  # Maximum wait time for specialists (5 minutes)
+  summary_interval_seconds: 10  # Update rolling summary every 10 seconds
 
 logging:
   level: ${LOG_LEVEL:INFO}

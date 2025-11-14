@@ -1,15 +1,77 @@
 """OpenRouter API integration using direct OpenAI client."""
 
 import logging
+import threading
 import time
-from typing import Any, Iterator
+from typing import TYPE_CHECKING, Any, Iterator
 
 import httpx
 from openai import OpenAI, RateLimitError
 
 from queenbee.config.loader import OpenRouterConfig
 
+if TYPE_CHECKING:
+    from queenbee.db.connection import DatabaseManager
+    from queenbee.db.models import RateLimitRepository
+
 logger = logging.getLogger(__name__)
+
+
+class RateLimiter:
+    """Token bucket rate limiter for API requests."""
+    
+    def __init__(self, requests_per_minute: int):
+        """Initialize rate limiter.
+        
+        Args:
+            requests_per_minute: Maximum requests allowed per minute.
+        """
+        self.requests_per_minute = requests_per_minute
+        self.tokens = requests_per_minute
+        self.max_tokens = requests_per_minute
+        self.last_update = time.time()
+        self.cooldown_until = 0.0  # Cooldown period from rate limit headers
+        self.lock = threading.Lock()
+        
+    def set_cooldown(self, reset_timestamp_ms: int) -> None:
+        """Set cooldown period based on rate limit reset timestamp.
+        
+        Args:
+            reset_timestamp_ms: Reset timestamp in milliseconds from epoch.
+        """
+        with self.lock:
+            reset_time = reset_timestamp_ms / 1000.0
+            self.cooldown_until = max(self.cooldown_until, reset_time)
+            wait_time = reset_time - time.time()
+            if wait_time > 0:
+                logger.warning(f"Rate limit hit, cooling down for {wait_time:.1f}s until {reset_time}")
+        
+    def acquire(self) -> None:
+        """Wait until a token is available, then consume it."""
+        while True:
+            with self.lock:
+                now = time.time()
+                
+                # Check if we're in cooldown period
+                if now < self.cooldown_until:
+                    # Release lock and wait
+                    pass
+                else:
+                    elapsed = now - self.last_update
+                    
+                    # Refill tokens based on elapsed time
+                    self.tokens = min(
+                        self.max_tokens,
+                        self.tokens + (elapsed * self.requests_per_minute / 60.0)
+                    )
+                    self.last_update = now
+                    
+                    if self.tokens >= 1.0:
+                        self.tokens -= 1.0
+                        return
+            
+            # Not enough tokens or in cooldown, wait a bit
+            time.sleep(0.1)
 
 
 class OpenRouterClient:
@@ -19,11 +81,12 @@ class OpenRouterClient:
     providing compatibility with the QueenBee framework.
     """
 
-    def __init__(self, config: OpenRouterConfig):
+    def __init__(self, config: OpenRouterConfig, db: "DatabaseManager | None" = None):
         """Initialize OpenRouter client.
 
         Args:
             config: OpenRouter configuration.
+            db: Database manager for rate limit persistence (optional).
         """
         self.config = config
         self.base_url = config.base_url
@@ -31,6 +94,25 @@ class OpenRouterClient:
         self.model_id = config.model
         self.timeout = config.timeout
         self.api_key = config.api_key
+        
+        # Initialize database repository for rate limit tracking
+        self.db = db
+        self.rate_limit_repo: "RateLimitRepository | None" = None
+        if db:
+            from queenbee.db.models import RateLimitRepository
+            self.rate_limit_repo = RateLimitRepository(db)
+        
+        # Initialize rate limiter
+        self.rate_limiter = RateLimiter(config.requests_per_minute)
+        self.max_retries = config.max_retries
+        self.retry_delay = config.retry_delay
+        
+        # Check database for existing rate limit
+        if self.rate_limit_repo:
+            reset_ms = self.rate_limit_repo.get_rate_limit_reset('openrouter', self.model_id)
+            if reset_ms and reset_ms > 0:
+                self.rate_limiter.set_cooldown(reset_ms)
+                logger.info(f"Loaded existing rate limit cooldown until {reset_ms/1000.0}")
         
         if not self.api_key:
             raise ValueError("OpenRouter API key is required. Set OPENROUTER_API_KEY in .env file.")
@@ -80,11 +162,11 @@ class OpenRouterClient:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
         
-        # Generate response with retry logic for rate limits
-        max_retries = 3
-        retry_delay = 5  # seconds
+        # Acquire rate limit token before making request
+        self.rate_limiter.acquire()
         
-        for attempt in range(max_retries):
+        # Generate response with retry logic for rate limits
+        for attempt in range(self.max_retries):
             try:
                 if stream:
                     # Streaming response
@@ -113,12 +195,25 @@ class OpenRouterClient:
                     )
                     return response.choices[0].message.content or ""
             except RateLimitError as e:
-                if attempt < max_retries - 1:
-                    wait_time = retry_delay * (attempt + 1)
-                    logger.warning(f"Rate limit hit, retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                # Extract rate limit reset time from response headers
+                if hasattr(e, 'response') and e.response is not None:
+                    headers = e.response.headers
+                    reset_header = headers.get('X-RateLimit-Reset') or headers.get('x-ratelimit-reset')
+                    if reset_header:
+                        try:
+                            reset_ms = int(reset_header)
+                            self.rate_limiter.set_cooldown(reset_ms)
+                        except (ValueError, TypeError):
+                            pass
+                
+                if attempt < self.max_retries - 1:
+                    wait_time = self.retry_delay * (attempt + 1)
+                    logger.warning(f"Rate limit hit, retrying in {wait_time}s (attempt {attempt + 1}/{self.max_retries})")
                     time.sleep(wait_time)
+                    # Acquire another token for retry
+                    self.rate_limiter.acquire()
                 else:
-                    logger.error(f"Rate limit exceeded after {max_retries} attempts")
+                    logger.error(f"Rate limit exceeded after {self.max_retries} attempts")
                     logger.error(f"Model: {self.model_id}, Base URL: {self.base_url}")
                     raise
             except Exception as e:
@@ -148,11 +243,11 @@ class OpenRouterClient:
         Returns:
             Generated text or iterator of text chunks if streaming.
         """
-        # Retry logic for rate limits
-        max_retries = 3
-        retry_delay = 5
+        # Acquire rate limit token before making request
+        self.rate_limiter.acquire()
         
-        for attempt in range(max_retries):
+        # Retry logic for rate limits
+        for attempt in range(self.max_retries):
             try:
                 if stream:
                     response = self.client.chat.completions.create(
@@ -179,12 +274,25 @@ class OpenRouterClient:
                     )
                     return response.choices[0].message.content or ""
             except RateLimitError as e:
-                if attempt < max_retries - 1:
-                    wait_time = retry_delay * (attempt + 1)
-                    logger.warning(f"Rate limit hit, retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                # Extract rate limit reset time from response headers
+                if hasattr(e, 'response') and e.response is not None:
+                    headers = e.response.headers
+                    reset_header = headers.get('X-RateLimit-Reset') or headers.get('x-ratelimit-reset')
+                    if reset_header:
+                        try:
+                            reset_ms = int(reset_header)
+                            self.rate_limiter.set_cooldown(reset_ms)
+                        except (ValueError, TypeError):
+                            pass
+                
+                if attempt < self.max_retries - 1:
+                    wait_time = self.retry_delay * (attempt + 1)
+                    logger.warning(f"Rate limit hit, retrying in {wait_time}s (attempt {attempt + 1}/{self.max_retries})")
                     time.sleep(wait_time)
+                    # Acquire another token for retry
+                    self.rate_limiter.acquire()
                 else:
-                    logger.error(f"Rate limit exceeded after {max_retries} attempts")
+                    logger.error(f"Rate limit exceeded after {self.max_retries} attempts")
                     raise
             except Exception as e:
                 logger.error(f"OpenRouter API error: {e}")

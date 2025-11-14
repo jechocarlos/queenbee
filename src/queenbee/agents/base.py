@@ -41,7 +41,7 @@ class BaseAgent:
         # Choose LLM based on environment variable
         if os.environ.get('QUEENBEE_USE_OPENROUTER'):
             from queenbee.llm.openrouter import OpenRouterClient
-            self.llm = OpenRouterClient(config.openrouter)
+            self.llm = OpenRouterClient(config.openrouter, db)
             logger.info(f"Agent {agent_type} initialized with OpenRouter")
         else:
             self.llm = OllamaClient(config.ollama)

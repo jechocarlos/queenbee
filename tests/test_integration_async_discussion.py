@@ -43,6 +43,9 @@ openrouter:
   model: anthropic/claude-3.5-sonnet
   timeout: 300
   base_url: https://openrouter.ai/api/v1
+  requests_per_minute: 16
+  max_retries: 3
+  retry_delay: 5
 
 agents:
   ttl:
@@ -76,6 +79,7 @@ consensus:
   agreement_threshold: "all"
   discussion_rounds: 10
   specialist_timeout_seconds: 300
+  summary_interval_seconds: 10
 
 logging:
   level: ERROR

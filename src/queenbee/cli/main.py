@@ -1,6 +1,7 @@
 """Main CLI interface."""
 
 import logging
+import os
 import signal
 import sys
 from pathlib import Path
@@ -132,9 +133,18 @@ def main() -> int:
 
         config = load_config(config_path)
         
+        # Check if using OpenRouter
+        using_openrouter = os.environ.get('QUEENBEE_USE_OPENROUTER') == '1'
+        
         # Show key config values for debugging
-        console.print(f"[dim]✓ Ollama model: {config.ollama.model}[/dim]")
-        console.print(f"[dim]✓ Ollama host: {config.ollama.host}[/dim]")
+        if using_openrouter:
+            console.print(f"[dim]✓ Provider: OpenRouter[/dim]")
+            console.print(f"[dim]✓ Model: {config.openrouter.model}[/dim]")
+            console.print(f"[dim]✓ Base URL: {config.openrouter.base_url}[/dim]")
+        else:
+            console.print(f"[dim]✓ Provider: Ollama[/dim]")
+            console.print(f"[dim]✓ Ollama model: {config.ollama.model}[/dim]")
+            console.print(f"[dim]✓ Ollama host: {config.ollama.host}[/dim]")
         console.print(f"[dim]✓ Database: {config.database.host}:{config.database.port}/{config.database.name}[/dim]")
         console.print(f"[dim]✓ Log level: {config.logging.level}[/dim]")
         
@@ -143,21 +153,48 @@ def main() -> int:
         logger = logging.getLogger(__name__)
         logger.info("Starting QueenBee")
 
-        # Check Ollama availability
-        from queenbee.llm import OllamaClient
-        ollama = OllamaClient(config.ollama)
-        if not ollama.is_available():
-            console.print(
-                "[red]Error: Ollama server is not available[/red]\n"
-                f"[yellow]Please ensure Ollama is running at {config.ollama.host}[/yellow]\n"
-                "[dim]Run: docker-compose -f docker-compose.local.yml up -d[/dim]"
-            )
-            return 1
+        # Check LLM availability based on provider
+        if using_openrouter:
+            from queenbee.llm.openrouter import OpenRouterClient
+            from queenbee.db.models import RateLimitRepository
+            
+            # Check for rate limit
+            db = DatabaseManager(config.database)
+            rate_limit_repo = RateLimitRepository(db)
+            if rate_limit_repo.is_rate_limited('openrouter', config.openrouter.model):
+                reset_ms = rate_limit_repo.get_rate_limit_reset('openrouter', config.openrouter.model)
+                import time
+                reset_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(reset_ms / 1000.0)) if reset_ms else 'unknown'
+                console.print(
+                    f"[red]Error: OpenRouter rate limit active until {reset_time}[/red]\n"
+                    "[yellow]Please wait for the rate limit to reset, or add credits to your account.[/yellow]"
+                )
+                return 1
+            
+            # Test OpenRouter client initialization
+            try:
+                llm_client = OpenRouterClient(config.openrouter, db)
+                logger.info(f"Connected to OpenRouter at {config.openrouter.base_url}")
+            except ValueError as e:
+                console.print(
+                    f"[red]Error: {e}[/red]\n"
+                    "[yellow]Please set OPENROUTER_API_KEY in your .env file[/yellow]"
+                )
+                return 1
+        else:
+            # Check Ollama availability
+            from queenbee.llm import OllamaClient
+            ollama = OllamaClient(config.ollama)
+            if not ollama.is_available():
+                console.print(
+                    "[red]Error: Ollama server is not available[/red]\n"
+                    f"[yellow]Please ensure Ollama is running at {config.ollama.host}[/yellow]\n"
+                    "[dim]Run: docker-compose -f docker-compose.local.yml up -d[/dim]"
+                )
+                return 1
 
-        logger.info(f"Connected to Ollama at {config.ollama.host}")
-
-        # Set up database
-        db = DatabaseManager(config.database)
+            logger.info(f"Connected to Ollama at {config.ollama.host}")
+            db = DatabaseManager(config.database)
         
         try:
             db.connect()

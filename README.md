@@ -219,6 +219,28 @@ queenbee-openrouter
 
 Both commands use the same configuration and database - only the LLM provider changes. You can switch between providers anytime without losing conversation history.
 
+### Rate Limiting (OpenRouter)
+
+OpenRouter integration includes intelligent rate limiting:
+
+```yaml
+# config.yaml
+openrouter:
+  requests_per_minute: 16  # Free tier limit
+  max_retries: 3           # Retry on rate limit
+  retry_delay: 5           # Seconds between retries
+```
+
+**How it works:**
+- **Token Bucket Algorithm**: Automatically throttles requests to respect provider limits
+- **Proactive Limiting**: Prevents hitting rate limits by tracking usage locally
+- **Automatic Retries**: Handles 429 errors with exponential backoff
+- **Thread-Safe**: Works correctly with multiple specialist agents running concurrently
+
+**Rate Limit Tiers:**
+- **Free**: 16 requests/minute (default)
+- **Paid Plans**: Update `requests_per_minute` in config to match your tier
+
 ## Deployment Modes
 
 ### Local Development

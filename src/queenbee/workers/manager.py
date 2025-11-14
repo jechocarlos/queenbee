@@ -106,9 +106,13 @@ class SpecialistWorker:
                 from queenbee.agents.summarizer import SummarizerAgent
                 summarizer = SummarizerAgent(self.session_id, self.config, self.db)
                 
+                # Get summary interval from config
+                summary_interval = self.config.consensus.summary_interval_seconds
+                logger.info(f"Rolling summary will update every {summary_interval} seconds")
+                
                 try:
                     while not stop_event.is_set():
-                        time.sleep(1.5)  # Update every 1.5 seconds for faster updates
+                        time.sleep(summary_interval)
                         
                         with discussion_lock:
                             current_discussion = discussion.copy()

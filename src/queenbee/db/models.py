@@ -387,3 +387,96 @@ class TaskRepository:
                 (session_id,),
             )
             return cursor.fetchall()
+
+
+class RateLimitRepository:
+    """Repository for provider rate limit data access."""
+
+    def __init__(self, db: DatabaseManager):
+        """Initialize rate limit repository.
+
+        Args:
+            db: Database manager.
+        """
+        self.db = db
+
+    def get_rate_limit_reset(self, provider: str, model: str) -> int | None:
+        """Get rate limit reset timestamp for a provider/model.
+
+        Args:
+            provider: Provider name (e.g., 'openrouter').
+            model: Model name.
+
+        Returns:
+            Unix timestamp in milliseconds, or None if not found.
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT rate_limit_reset FROM provider_rate_limits WHERE provider = %s AND model = %s",
+                (provider, model),
+            )
+            result = cursor.fetchone()
+            return result["rate_limit_reset"] if result else None
+
+    def set_rate_limit_reset(
+        self,
+        provider: str,
+        model: str,
+        reset_timestamp_ms: int,
+        remaining: int | None = None,
+        limit: int | None = None,
+    ) -> None:
+        """Set rate limit reset timestamp for a provider/model.
+
+        Args:
+            provider: Provider name (e.g., 'openrouter').
+            model: Model name.
+            reset_timestamp_ms: Unix timestamp in milliseconds when rate limit resets.
+            remaining: Remaining requests (optional).
+            limit: Total request limit (optional).
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO provider_rate_limits (provider, model, rate_limit_reset, rate_limit_remaining, rate_limit_limit, updated_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (provider, model) 
+                DO UPDATE SET 
+                    rate_limit_reset = EXCLUDED.rate_limit_reset,
+                    rate_limit_remaining = EXCLUDED.rate_limit_remaining,
+                    rate_limit_limit = EXCLUDED.rate_limit_limit,
+                    updated_at = NOW()
+                """,
+                (provider, model, reset_timestamp_ms, remaining, limit),
+            )
+
+    def is_rate_limited(self, provider: str, model: str) -> bool:
+        """Check if provider/model is currently rate limited.
+
+        Args:
+            provider: Provider name (e.g., 'openrouter').
+            model: Model name.
+
+        Returns:
+            True if rate limited, False otherwise.
+        """
+        reset_ms = self.get_rate_limit_reset(provider, model)
+        if reset_ms is None:
+            return False
+        
+        import time
+        current_time_ms = int(time.time() * 1000)
+        return current_time_ms < reset_ms
+
+    def clear_rate_limit(self, provider: str, model: str) -> None:
+        """Clear rate limit for a provider/model.
+
+        Args:
+            provider: Provider name (e.g., 'openrouter').
+            model: Model name.
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "UPDATE provider_rate_limits SET rate_limit_reset = 0, updated_at = NOW() WHERE provider = %s AND model = %s",
+                (provider, model),
+            )

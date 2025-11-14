@@ -45,6 +45,11 @@ class OpenRouterConfig(BaseSettings):
     timeout: int = Field(default=120)
     base_url: str = Field(default="https://openrouter.ai/api/v1")
     verify_ssl: bool = Field(default=True)  # Allow disabling SSL verification for testing
+    
+    # Rate limiting configuration
+    requests_per_minute: int = Field(default=16)  # Free tier default
+    max_retries: int = Field(default=3)
+    retry_delay: int = Field(default=5)  # Base delay in seconds
 
 
 class AgentTTLConfig(BaseSettings):
@@ -82,6 +87,7 @@ class ConsensusConfig(BaseSettings):
     agreement_threshold: str = Field(default="all")
     discussion_rounds: int = Field(default=3)
     specialist_timeout_seconds: int = Field(default=300)  # 5 minutes
+    summary_interval_seconds: int = Field(default=10)  # How often to update rolling summary
 
 
 class LoggingConfig(BaseSettings):

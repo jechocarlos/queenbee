@@ -36,7 +36,8 @@ openrouter:
 #### LLM Client
 
 **`src/queenbee/llm/openrouter.py`**:
-- `OpenRouterClient` class wraps Agno's `OpenAIChat` model
+- `OpenRouterClient` class with built-in rate limiting
+- `RateLimiter` class: Token bucket algorithm for request throttling
 - Uses OpenRouter endpoint: `https://openrouter.ai/api/v1`
 - Supports both streaming and non-streaming responses
 - Methods:
@@ -44,6 +45,10 @@ openrouter:
   - `chat(messages, stream=False)`: Chat completion
   - `is_available()`: Health check
   - `list_models()`: Available models (if supported)
+- **Rate Limiting**: Automatically throttles requests to respect provider limits
+  - Token bucket refills at configured rate (requests per minute)
+  - Blocks requests when limit reached until tokens available
+  - Retries on 429 rate limit errors with exponential backoff
 
 #### Agent Integration
 
@@ -95,7 +100,23 @@ queenbee-openrouter = "queenbee.cli.openrouter_main:main_openrouter"
 echo "OPENROUTER_API_KEY=your_key_here" >> .env
 ```
 
-3. **Install/Update package**:
+3. **Configure rate limits** (in `config.yaml`):
+```yaml
+openrouter:
+  api_key: ${OPENROUTER_API_KEY:}
+  model: anthropic/claude-3.5-sonnet
+  
+  # Rate limiting configuration
+  requests_per_minute: 16   # Free tier: 16 req/min
+  max_retries: 3            # Retry attempts on rate limit
+  retry_delay: 5            # Base delay between retries (seconds)
+```
+
+**Rate Limit Tiers**:
+- **Free**: 16 requests/minute
+- **Paid**: Varies by plan (update `requests_per_minute` accordingly)
+
+4. **Install/Update package**:
 ```bash
 pip install -e .
 ```

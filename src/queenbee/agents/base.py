@@ -1,6 +1,7 @@
 """Base agent implementation."""
 
 import logging
+import os
 from pathlib import Path
 from typing import Iterator, Union
 from uuid import UUID
@@ -36,7 +37,18 @@ class BaseAgent:
         self.config = config
         self.db = db
         self.agent_repo = AgentRepository(db)
-        self.ollama = OllamaClient(config.ollama)
+        
+        # Choose LLM based on environment variable
+        if os.environ.get('QUEENBEE_USE_OPENROUTER'):
+            from queenbee.llm.openrouter import OpenRouterClient
+            self.llm = OpenRouterClient(config.openrouter)
+            logger.info(f"Agent {agent_type} initialized with OpenRouter")
+        else:
+            self.llm = OllamaClient(config.ollama)
+            logger.info(f"Agent {agent_type} initialized with Ollama")
+        
+        # Keep ollama for backward compatibility
+        self.ollama = self.llm
 
         # Load system prompt
         self.system_prompt = self._load_system_prompt()

@@ -36,6 +36,12 @@ ollama:
   model: test-model
   timeout: 300
 
+openrouter:
+  api_key: test_api_key
+  model: anthropic/claude-3.5-sonnet
+  timeout: 300
+  base_url: https://openrouter.ai/api/v1
+
 agents:
   ttl:
     idle_timeout_minutes: 10

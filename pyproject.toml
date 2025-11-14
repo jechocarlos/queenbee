@@ -29,6 +29,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "httpx>=0.25.0",
     "rich>=13.7.0",
+    "openai>=1.0.0",  # Required for OpenRouter support via Agno
 ]
 
 [project.optional-dependencies]
@@ -43,6 +44,7 @@ dev = [
 
 [project.scripts]
 queenbee = "queenbee.cli.main:main"
+queenbee-openrouter = "queenbee.cli.openrouter_main:main_openrouter"
 
 [project.urls]
 Homepage = "https://github.com/jechocarlos/queenbee"

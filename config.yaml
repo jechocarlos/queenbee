@@ -16,6 +16,13 @@ ollama:
   model: gpt-oss:20b
   timeout: 300
 
+openrouter:
+  api_key: ${OPENROUTER_API_KEY:}
+  model: openai/gpt-oss-20b:free
+  timeout: 300
+  base_url: https://openrouter.ai/api/v1
+  verify_ssl: false  # Disable SSL verification (for testing with corporate proxies)
+
 agents:
   ttl:
     idle_timeout_minutes: 10

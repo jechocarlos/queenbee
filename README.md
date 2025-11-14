@@ -25,7 +25,9 @@ QueenBee is an intelligent agent orchestration system that dynamically spawns sp
   - Robust connection management with automatic reconnection
   - Transaction safety with commit/rollback
   - Context manager support for clean resource handling
-- **🏠 Local LLM**: Powered by Ollama for privacy and control
+- **🤖 Flexible LLM Backend**: Choose your AI provider
+  - **Ollama**: Local LLM for privacy and control
+  - **OpenRouter**: Access to Claude, GPT-4, and other premium models
 - **⏰ Activity-Based TTL**: Agents expire after inactivity, keeping system lean
 
 ## Architecture
@@ -95,8 +97,19 @@ python scripts/migrate.py
 ```
 
 7. **Start QueenBee**:
+
+**With Ollama (local):**
 ```bash
 queenbee
+```
+
+**With OpenRouter (cloud):**
+```bash
+# Add your OpenRouter API key to .env
+echo "OPENROUTER_API_KEY=your_key_here" >> .env
+
+# Run with OpenRouter
+queenbee-openrouter
 ```
 
 ## Usage
@@ -164,7 +177,12 @@ I recommend starting with a modular monolith architecture for your startup...
 ```bash
 # Common
 LOG_LEVEL=INFO
+
+# Ollama (local LLM)
 OLLAMA_HOST=http://localhost:11434
+
+# OpenRouter (cloud LLM - optional)
+OPENROUTER_API_KEY=your_api_key_here
 
 # Database (local deployment)
 DB_HOST=postgres
@@ -183,8 +201,23 @@ DB_PASSWORD=your_password
 See `config.yaml` for full configuration options including:
 - Agent TTL settings
 - Consensus parameters
-- Ollama model selection
+- **Ollama**: Local model selection (llama3.1:8b by default)
+- **OpenRouter**: Cloud model selection (anthropic/claude-3.5-sonnet by default)
 - Specialist behavior tuning
+
+### LLM Provider Selection
+
+**Use Ollama (local, private, free):**
+```bash
+queenbee
+```
+
+**Use OpenRouter (cloud, premium models):**
+```bash
+queenbee-openrouter
+```
+
+Both commands use the same configuration and database - only the LLM provider changes. You can switch between providers anytime without losing conversation history.
 
 ## Deployment Modes
 

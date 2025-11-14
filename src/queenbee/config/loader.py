@@ -37,6 +37,16 @@ class OllamaConfig(BaseSettings):
     timeout: int = Field(default=120)
 
 
+class OpenRouterConfig(BaseSettings):
+    """OpenRouter configuration."""
+
+    api_key: str = Field(default="")
+    model: str = Field(default="anthropic/claude-3.5-sonnet")
+    timeout: int = Field(default=120)
+    base_url: str = Field(default="https://openrouter.ai/api/v1")
+    verify_ssl: bool = Field(default=True)  # Allow disabling SSL verification for testing
+
+
 class AgentTTLConfig(BaseSettings):
     """Agent TTL configuration."""
 
@@ -96,6 +106,7 @@ class Config(BaseSettings):
     system: SystemConfig
     database: DatabaseConfig
     ollama: OllamaConfig
+    openrouter: OpenRouterConfig
     agents: AgentsConfig
     consensus: ConsensusConfig
     logging: LoggingConfig

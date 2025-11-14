@@ -116,6 +116,9 @@ def stream_response(response_iter: Iterator[str]) -> str:
 
 def main() -> int:
     """Main entry point for QueenBee CLI."""
+    # Clear the terminal for a clean start
+    console.clear()
+    
     # Set up signal handlers
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)

@@ -17,12 +17,14 @@ class LiveDiscussionViewer:
         "Divergent": "bright_magenta",
         "Convergent": "bright_cyan",
         "Critical": "bright_yellow",
+        "WebSearcher": "bright_green",
     }
 
     AGENT_EMOJIS = {
         "Divergent": "🌟",
         "Convergent": "🔗",
         "Critical": "🔍",
+        "WebSearcher": "🔎",
     }
 
     STATUS_INDICATORS = {
@@ -68,6 +70,7 @@ class LiveDiscussionViewer:
         last_summary = ""
         last_agent_status = {}  # Track last agent status to avoid spam
         displayed_contributions = set()  # Track which contributions we've printed
+        displayed_web_searches = set()  # Track which web search events we've printed
         
         while time.time() - start_time < timeout:
             # Poll task for updates
@@ -112,14 +115,30 @@ class LiveDiscussionViewer:
                     contributions = result.get("contributions", [])
                     rolling_summary = result.get("rolling_summary", "")
                     agent_status = result.get("agent_status", {})
+                    web_search_events = result.get("web_search_events", [])
                     
                     # Track if we printed anything this iteration
                     printed_something = False
+                    
+                    # Print new web search requests
+                    if web_search_events:
+                        for i, event in enumerate(web_search_events):
+                            event_id = f"{event.get('agent', '')}_{event.get('query', '')}_{i}"
+                            if event_id not in displayed_web_searches:
+                                agent = event.get('agent', 'Unknown')
+                                query = event.get('query', '')
+                                # Show full query without truncation
+                                self.console.print(f"🔎 WebSearcher: helping {agent} with query '{query}'", style="bright_green")
+                                displayed_web_searches.add(event_id)
+                                printed_something = True
                     
                     # Print new contributions
                     if len(contributions) > last_contribution_count:
                         for i in range(last_contribution_count, len(contributions)):
                             contrib = contributions[i]
+                            # Skip hidden contributions (like web search results)
+                            if contrib.get("hidden", False):
+                                continue
                             contrib_id = f"{contrib.get('agent', '')}_{i}"
                             if contrib_id not in displayed_contributions:
                                 self._print_contribution(contrib, is_new=True)
@@ -137,15 +156,14 @@ class LiveDiscussionViewer:
                         last_summary = rolling_summary
                         printed_something = True
                     
-                    # Show agent activity status only if it changed AND we didn't just print content
+                    # Show agent activity status only when individual agents change status
                     # This prevents status from interrupting/cutting off agent responses
-                    if agent_status and agent_status != last_agent_status and not printed_something:
-                        status_parts = []
+                    if agent_status and not printed_something:
+                        # Only print agents whose status actually changed
                         for agent, agent_stat in agent_status.items():
-                            emoji = self.AGENT_EMOJIS.get(agent, "🤖")
-                            status_parts.append(f"{emoji} {agent}: {agent_stat}")
-                        if status_parts:
-                            self.console.print(f"  [{', '.join(status_parts)}]", style="dim cyan")
+                            if agent not in last_agent_status or last_agent_status[agent] != agent_stat:
+                                emoji = self.AGENT_EMOJIS.get(agent, "🤖")
+                                self.console.print(f"{emoji} {agent}: {agent_stat}", style="dim cyan")
                         last_agent_status = agent_status.copy()
                     elif agent_status != last_agent_status:
                         # Still track the change even if we didn't print it

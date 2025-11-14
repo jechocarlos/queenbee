@@ -98,6 +98,7 @@ class SpecialistWorker:
         stop_event = threading.Event()
         agent_status = {}  # Track if each agent is thinking or idle
         rolling_summary = {"content": "", "last_update": 0}  # Track rolling summary
+        web_search_events = []  # Track web search requests: {"agent": "Divergent", "query": "..."}
         
         def update_rolling_summary():
             """Background thread that continuously updates the rolling summary using SummarizerAgent."""
@@ -140,7 +141,8 @@ class SpecialistWorker:
                                         "contributions": discussion.copy(),
                                         "rolling_summary": rolling_summary["content"],
                                         "task": user_input,
-                                        "agent_status": agent_status.copy()
+                                        "agent_status": agent_status.copy(),
+                                        "web_search_events": web_search_events.copy()
                                     }
                                     self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
                                 
@@ -194,7 +196,8 @@ class SpecialistWorker:
                                     "contributions": discussion.copy(),
                                     "rolling_summary": rolling_summary["content"],
                                     "task": user_input,
-                                    "agent_status": agent_status.copy()
+                                    "agent_status": agent_status.copy(),
+                                    "web_search_events": web_search_events.copy()
                                 }
                                 self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
                             
@@ -209,14 +212,101 @@ class SpecialistWorker:
                                 context=context
                             )
                             
-                            if response and not response.strip().upper().startswith("[PASS"):
+                            # Check if agent requested a web search
+                            if response and response.startswith("__WEB_SEARCH_REQUEST__"):
+                                # Check if WebSearcher is already busy
+                                with discussion_lock:
+                                    websearcher_status = agent_status.get("WebSearcher", "idle")
+                                
+                                if websearcher_status == "searching":
+                                    # WebSearcher is busy, agent needs to wait or pass
+                                    logger.info(f"{agent_name} tried to request search but WebSearcher is busy")
+                                    agent_status[agent_name] = "idle"
+                                    continue
+                                
+                                search_query = response.replace("__WEB_SEARCH_REQUEST__", "", 1)
+                                logger.info(f"{agent_name} requested web search: {search_query[:100]}")
+                                
+                                # Record web search event
+                                with discussion_lock:
+                                    web_search_events.append({
+                                        "agent": agent_name,
+                                        "query": search_query,
+                                        "timestamp": time.time()
+                                    })
+                                    agent_status["WebSearcher"] = "searching"
+                                    
+                                    # Update UI immediately
+                                    intermediate_result = {
+                                        "status": "in_progress",
+                                        "contributions": discussion.copy(),
+                                        "rolling_summary": rolling_summary["content"],
+                                        "task": user_input,
+                                        "agent_status": agent_status.copy(),
+                                        "web_search_events": web_search_events.copy()
+                                    }
+                                    self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
+                                
+                                # Perform web search
+                                from queenbee.agents.web_searcher import \
+                                    WebSearcherAgent
+                                web_searcher = WebSearcherAgent(self.session_id, self.config, self.db)
+                                search_results = web_searcher.search(
+                                    query=search_query,
+                                    requesting_agent=agent_name,
+                                    stream=False
+                                )
+                                
+                                # Add search results as a contribution (hidden from display but available to agents)
+                                with discussion_lock:
+                                    agent_status["WebSearcher"] = "idle"
+                                    contribution = {
+                                        "agent": "WebSearcher",
+                                        "content": f"Search results for '{search_query}':\n\n{search_results}",
+                                        "timestamp": time.time(),
+                                        "contribution_num": len(discussion) + 1,
+                                        "hidden": True  # Don't display in live discussion, but agents can see it
+                                    }
+                                    discussion.append(contribution)
+                                    
+                                    intermediate_result = {
+                                        "status": "in_progress",
+                                        "contributions": discussion.copy(),
+                                        "rolling_summary": rolling_summary["content"],
+                                        "task": user_input,
+                                        "agent_status": agent_status.copy(),
+                                        "web_search_events": web_search_events.copy()
+                                    }
+                                    self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
+                                
+                                # Let the requesting agent see the results and continue
+                                agent_status[agent_name] = "idle"
+                                continue
+                            
+                            if response and not response.startswith("__WEB_SEARCH_REQUEST__") and not response.strip().upper().startswith("[PASS"):
+                                # Clean up response by removing tool-calling syntax
+                                response_text = str(response)
+                                # Remove all <|...|> tags and their content
+                                import re
+                                response_text = re.sub(r'<\|[^|]*\|>[^<]*', '', response_text)
+                                # Remove standalone <|...|> tags
+                                response_text = re.sub(r'<\|[^|]*\|>', '', response_text)
+                                # Clean up extra whitespace
+                                response_text = re.sub(r'\n\s*\n\s*\n+', '\n\n', response_text).strip()
+                                
+                                if not response_text or len(response_text) < 10:
+                                    # Response was all tool syntax, treat as pass
+                                    logger.info(f"{agent_name} response was only tool syntax, treating as pass")
+                                    agent_status[agent_name] = "idle"
+                                    continue
+                                
                                 # Mark as contributing
                                 with discussion_lock:
                                     agent_status[agent_name] = "contributing"
                                 
                                 contribution = {
                                     "agent": agent_name,
-                                    "content": response,
+                                    "content": response_text,
                                     "timestamp": time.time(),
                                     "contribution_num": contribution_count + 1
                                 }
@@ -231,7 +321,8 @@ class SpecialistWorker:
                                         "contributions": discussion.copy(),
                                         "rolling_summary": rolling_summary["content"],
                                         "task": user_input,
-                                        "agent_status": agent_status.copy()
+                                        "agent_status": agent_status.copy(),
+                                        "web_search_events": web_search_events.copy()
                                     }
                                     self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
                                 
@@ -250,7 +341,8 @@ class SpecialistWorker:
                                 "contributions": discussion.copy(),
                                 "rolling_summary": rolling_summary["content"],
                                 "task": user_input,
-                                "agent_status": agent_status.copy()
+                                "agent_status": agent_status.copy(),
+                                "web_search_events": web_search_events.copy()
                             }
                             self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
                         
@@ -295,7 +387,8 @@ class SpecialistWorker:
                 "contributions": [],
                 "rolling_summary": "",
                 "task": user_input,
-                "agent_status": agent_status.copy()
+                "agent_status": agent_status.copy(),
+                "web_search_events": web_search_events.copy()
             }
             self.task_repo.set_task_result(task_id, json.dumps(initial_result))
         logger.info("Sent initial status to live viewer")
@@ -493,6 +586,13 @@ Only contribute if you can add:
 - A different way of thinking about the problem
 - An unexplored aspect or dimension
 
+IMPORTANT - WEB SEARCH FIRST:
+- If the question involves current events, recent data, specific facts, benchmarks, or real-world examples, ALWAYS request a web search FIRST
+- Don't rely on your training data for factual claims - get real sources
+- Request search naturally: "Hey @WebSearcher! Search for [your query]"
+- Examples: latest pricing, current statistics, recent developments, specific company info, technical benchmarks
+- After getting search results, you can then contribute your perspective based on actual data
+
 KEEP IT BRIEF: {token_instruction}. Be specific and concrete. Add genuine value, not repetition."""
 
         elif agent_name == "Convergent":
@@ -521,6 +621,13 @@ Only contribute if you can add:
 - Refined or prioritized recommendations based on new information
 - Clearer action items or implementation guidance
 
+IMPORTANT - WEB SEARCH FIRST:
+- If your synthesis requires current data, pricing, performance metrics, or specific real-world examples, ALWAYS request a web search FIRST
+- Don't make recommendations based on outdated training data - get real sources
+- Request search naturally: "Hey @WebSearcher! Search for [your query]"
+- Examples: current best practices, actual costs, real performance data, existing solutions
+- Base your synthesis on actual verified information, not assumptions
+
 KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about what you're adding beyond what's already been said."""
 
         else:  # Critical
@@ -530,8 +637,6 @@ KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about wh
 {f'{context}\n' if context else ''}
 Discussion so far:
 {discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
-
-You are the Critical validator. Your role is to identify risks, flaws, and validate solutions.
 
 You are the Critical validator. Your role is to identify risks, flaws, and validate solutions.
 
@@ -551,6 +656,13 @@ Only contribute if you can add:
 - A logical inconsistency or flaw others missed
 - Important safeguards or considerations overlooked
 
+IMPORTANT - WEB SEARCH FIRST:
+- If you need to validate claims with real data, check for known issues, or verify technical details, ALWAYS request a web search FIRST
+- Don't assume risks based on outdated knowledge - check current information
+- Request search naturally: "Hey @WebSearcher! Search for [your query]"
+- Examples: known security vulnerabilities, actual failure cases, documented limitations, compatibility issues
+- Base your critique on verified real-world evidence, not speculation
+
 KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about the new concern or validation you're adding."""
 
         # Get max_tokens from config based on agent type
@@ -569,6 +681,18 @@ KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about th
                 stream=False,
                 max_tokens=max_tokens if max_tokens > 0 else None
             )
+            
+            # Check if agent is requesting a web search (natural language pattern)
+            if response and isinstance(response, str):
+                response_text = str(response).strip()
+                # Detect patterns like "Hey @WebSearcher! Search for X" or "@WebSearcher, search X"
+                import re
+                web_search_pattern = r'@WebSearcher[!,.]?\s*[Ss]earch\s+(?:for\s+)?["\']?([^"\'.\n]+)["\']?'
+                match = re.search(web_search_pattern, response_text, re.IGNORECASE)
+                if match:
+                    search_query = match.group(1).strip()
+                    return f"__WEB_SEARCH_REQUEST__{search_query}"
+            
             return response if response else None
         except Exception as e:
             logger.error(f"{agent_name} error: {e}")

@@ -271,27 +271,43 @@ Focus on answering the user's question, not describing the process."""
         response = self.generate_response(prompt, stream=False)
         return str(response)
     
-    def _get_conversation_context(self, limit: int = 5) -> str:
-        """Get recent conversation context.
+    def _get_conversation_context(self, limit: int = 10) -> str:
+        """Get recent conversation context for specialists.
+        
+        Provides context from previous exchanges in the session, focusing on:
+        - User questions
+        - Queen's final responses (which synthesize previous discussions)
+        
+        This bridges multiple async discussions by giving specialists awareness
+        of what has already been discussed and concluded.
 
         Args:
             limit: Number of recent messages to include.
 
         Returns:
-            Formatted context string.
+            Formatted context string for specialists.
         """
         messages = self.chat_repo.get_session_history(self.session_id, limit=limit)
         
         if not messages:
             return ""
         
-        context_parts = []
+        # Filter to USER and QUEEN messages only (exclude internal specialist chatter)
+        context_parts = ["=== PREVIOUS CONVERSATION IN THIS SESSION ===\n"]
         for msg in messages[-limit:]:
-            role = msg["role"].upper()
+            role = msg["role"]
             content = msg["content"]
-            context_parts.append(f"{role}: {content}")
+            
+            if role == MessageRole.USER:
+                context_parts.append(f"User asked: {content}")
+            elif role == MessageRole.QUEEN:
+                context_parts.append(f"Queen responded: {content}")
         
-        return "\n".join(context_parts)
+        if len(context_parts) == 1:  # Only header, no messages
+            return ""
+            
+        context_parts.append("\n=== NEW QUESTION (your current task) ===")
+        return "\n\n".join(context_parts)
     
     def _format_specialist_results(self, results: dict, original_task: str) -> str:
         """Format results from specialist agents into coherent response.

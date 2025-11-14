@@ -471,6 +471,7 @@ class SpecialistWorker:
             token_instruction = f"Maximum {max_tokens_divergent} tokens" if max_tokens_divergent > 0 else "Keep it concise"
             prompt = f"""Original question: {user_input}
 
+{f'{context}\n' if context else ''}
 Discussion so far:
 {discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
 
@@ -498,6 +499,7 @@ KEEP IT BRIEF: {token_instruction}. Be specific and concrete. Add genuine value,
             token_instruction = f"Maximum {max_tokens_convergent} tokens" if max_tokens_convergent > 0 else "Keep it concise"
             prompt = f"""Original question: {user_input}
 
+{f'{context}\n' if context else ''}
 Discussion so far:
 {discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
 
@@ -525,6 +527,7 @@ KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about wh
             token_instruction = f"Maximum {max_tokens_critical} tokens" if max_tokens_critical > 0 else "Keep it concise"
             prompt = f"""Original question: {user_input}
 
+{f'{context}\n' if context else ''}
 Discussion so far:
 {discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
 

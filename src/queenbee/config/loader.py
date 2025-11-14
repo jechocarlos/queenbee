@@ -52,6 +52,33 @@ class OpenRouterConfig(BaseSettings):
     retry_delay: int = Field(default=5)  # Base delay in seconds
 
 
+class InferencePack(BaseSettings):
+    """Inference pack configuration for specific use cases."""
+
+    model: str = Field(..., description="Model identifier (e.g., 'openai/gpt-4o-mini')")
+    provider: str = Field(default="openrouter", description="Provider: 'ollama' or 'openrouter'")
+    extract_reasoning: bool = Field(default=True, description="Extract from reasoning field for reasoning models")
+    temperature: float = Field(default=0.7, description="Sampling temperature")
+    max_tokens: int = Field(default=0, description="Max tokens (0 = no limit)")
+
+
+class InferencePacksConfig(BaseSettings):
+    """Collection of inference packs for different use cases."""
+
+    # Define named inference packs
+    packs: dict[str, InferencePack] = Field(default_factory=dict)
+
+
+class AgentInferenceConfig(BaseSettings):
+    """Agent-specific inference pack assignments."""
+
+    queen: str = Field(default="standard", description="Inference pack name for queen agent")
+    divergent: str = Field(default="standard", description="Inference pack name for divergent agent")
+    convergent: str = Field(default="standard", description="Inference pack name for convergent agent")
+    critical: str = Field(default="standard", description="Inference pack name for critical agent")
+    summarizer: str = Field(default="standard", description="Inference pack name for summarizer agent")
+
+
 class AgentTTLConfig(BaseSettings):
     """Agent TTL configuration."""
 
@@ -113,6 +140,8 @@ class Config(BaseSettings):
     database: DatabaseConfig
     ollama: OllamaConfig
     openrouter: OpenRouterConfig
+    inference_packs: InferencePacksConfig = Field(default_factory=InferencePacksConfig)
+    agent_inference: AgentInferenceConfig = Field(default_factory=AgentInferenceConfig)
     agents: AgentsConfig
     consensus: ConsensusConfig
     logging: LoggingConfig

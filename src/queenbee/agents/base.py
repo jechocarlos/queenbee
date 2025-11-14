@@ -38,14 +38,41 @@ class BaseAgent:
         self.db = db
         self.agent_repo = AgentRepository(db)
         
-        # Choose LLM based on environment variable
-        if os.environ.get('QUEENBEE_USE_OPENROUTER'):
+        # Get inference pack for this agent type
+        pack_name = self._get_inference_pack_name()
+        inference_pack = config.inference_packs.packs.get(pack_name)
+        
+        if not inference_pack:
+            logger.warning(f"Inference pack '{pack_name}' not found for {agent_type}, using defaults")
+            inference_pack = None
+        
+        # Initialize LLM based on inference pack or environment variable
+        if inference_pack:
+            # Use inference pack configuration
+            if inference_pack.provider == "openrouter":
+                from queenbee.llm.openrouter import OpenRouterClient
+                self.llm = OpenRouterClient(config.openrouter, db, inference_pack)
+                logger.info(f"Agent {agent_type} using inference pack '{pack_name}' with model {inference_pack.model}")
+            else:  # ollama
+                from queenbee.llm import OllamaClient
+
+                # Create custom config for this pack
+                ollama_config = config.ollama.model_copy()
+                ollama_config.model = inference_pack.model
+                self.llm = OllamaClient(ollama_config)
+                logger.info(f"Agent {agent_type} using inference pack '{pack_name}' with Ollama model {inference_pack.model}")
+        elif os.environ.get('QUEENBEE_USE_OPENROUTER'):
+            # Fallback to environment variable detection
             from queenbee.llm.openrouter import OpenRouterClient
             self.llm = OpenRouterClient(config.openrouter, db)
-            logger.info(f"Agent {agent_type} initialized with OpenRouter")
+            logger.info(f"Agent {agent_type} initialized with OpenRouter (default)")
         else:
+            from queenbee.llm import OllamaClient
             self.llm = OllamaClient(config.ollama)
-            logger.info(f"Agent {agent_type} initialized with Ollama")
+            logger.info(f"Agent {agent_type} initialized with Ollama (default)")
+        
+        # Store inference pack for later use
+        self.inference_pack = inference_pack
         
         # Keep ollama for backward compatibility
         self.ollama = self.llm
@@ -62,6 +89,25 @@ class BaseAgent:
         )
 
         logger.info(f"Initialized {agent_type.value} agent: {self.agent_id}")
+
+    def _get_inference_pack_name(self) -> str:
+        """Get inference pack name for this agent type.
+
+        Returns:
+            Inference pack name from configuration.
+        """
+        if self.agent_type == AgentType.QUEEN:
+            return self.config.agent_inference.queen
+        elif self.agent_type == AgentType.DIVERGENT:
+            return self.config.agent_inference.divergent
+        elif self.agent_type == AgentType.CONVERGENT:
+            return self.config.agent_inference.convergent
+        elif self.agent_type == AgentType.CRITICAL:
+            return self.config.agent_inference.critical
+        elif self.agent_type == AgentType.SUMMARIZER:
+            return self.config.agent_inference.summarizer
+        else:
+            return "standard"
 
     def _load_system_prompt(self) -> str:
         """Load system prompt from file.

@@ -180,6 +180,52 @@ development velocity. Start simple, extract as needed.
 
 ## ⚙️ Configuration
 
+### Inference Packs (Advanced Model Configuration)
+
+QueenBee supports **inference packs** - named model configurations that you can assign to specific agents:
+
+```yaml
+# Define inference packs for different use cases
+inference_packs:
+  packs:
+    reasoning:
+      model: openai/gpt-oss-20b
+      provider: openrouter
+      extract_reasoning: true
+      temperature: 0.7
+      max_tokens: 500
+    
+    web_search:
+      model: openai/gpt-4o-mini-search-preview
+      provider: openrouter
+      extract_reasoning: false
+      temperature: 0.7
+      max_tokens: 800
+    
+    standard:
+      model: openai/gpt-oss-20b
+      provider: openrouter
+      extract_reasoning: false
+      temperature: 0.7
+      max_tokens: 500
+
+# Assign packs to agents
+agent_inference:
+  queen: standard
+  divergent: web_search     # Uses web search model
+  convergent: reasoning     # Uses reasoning model
+  critical: standard
+  summarizer: standard
+```
+
+**Benefits:**
+- 🎯 Different models for different thinking styles
+- 🔍 Web search for exploration, reasoning for analysis
+- 💰 Mix free and premium models to optimize cost
+- 🏠 Combine local (Ollama) and cloud (OpenRouter) models
+
+See [Inference Packs Guide](docs/inference-packs.md) for detailed configuration options.
+
 ### LLM Provider Setup
 
 **Ollama (Local)**

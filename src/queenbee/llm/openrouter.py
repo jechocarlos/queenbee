@@ -81,17 +81,32 @@ class OpenRouterClient:
     providing compatibility with the QueenBee framework.
     """
 
-    def __init__(self, config: OpenRouterConfig, db: "DatabaseManager | None" = None):
+    def __init__(self, config: OpenRouterConfig, db: "DatabaseManager | None" = None, inference_pack: Any = None):
         """Initialize OpenRouter client.
 
         Args:
             config: OpenRouter configuration.
             db: Database manager for rate limit persistence (optional).
+            inference_pack: InferencePack configuration to override defaults (optional).
         """
         self.config = config
         self.base_url = config.base_url
-        self.model = config.model
-        self.model_id = config.model
+        self.inference_pack = inference_pack
+        
+        # Use inference pack settings if provided, otherwise use config
+        if inference_pack:
+            self.model = inference_pack.model
+            self.model_id = inference_pack.model
+            self.extract_reasoning = inference_pack.extract_reasoning
+            self.default_temperature = inference_pack.temperature
+            self.default_max_tokens = inference_pack.max_tokens if inference_pack.max_tokens > 0 else None
+        else:
+            self.model = config.model
+            self.model_id = config.model
+            self.extract_reasoning = True  # Default to extracting reasoning
+            self.default_temperature = 0.7
+            self.default_max_tokens = None
+        
         self.timeout = config.timeout
         self.api_key = config.api_key
         
@@ -203,8 +218,8 @@ class OpenRouterClient:
                     message = response.choices[0].message
                     content = message.content or ""
                     
-                    # For reasoning models (like gpt-oss-20b), extract from reasoning field
-                    if not content and hasattr(message, 'reasoning') and message.reasoning:
+                    # For reasoning models, extract from reasoning field if configured
+                    if self.extract_reasoning and not content and hasattr(message, 'reasoning') and message.reasoning:
                         content = message.reasoning
                     
                     return content
@@ -296,8 +311,8 @@ class OpenRouterClient:
                     message = response.choices[0].message
                     content = message.content or ""
                     
-                    # For reasoning models (like gpt-oss-20b), extract from reasoning field
-                    if not content and hasattr(message, 'reasoning') and message.reasoning:
+                    # For reasoning models, extract from reasoning field if configured
+                    if self.extract_reasoning and not content and hasattr(message, 'reasoning') and message.reasoning:
                         content = message.reasoning
                     
                     return content

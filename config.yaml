@@ -28,6 +28,52 @@ openrouter:
   max_retries: 3
   retry_delay: 5  # seconds
 
+# Inference Packs: Define model configurations for different use cases
+inference_packs:
+  packs:
+    reasoning:
+      model: openai/gpt-oss-20b
+      provider: openrouter
+      extract_reasoning: true
+      temperature: 0.5
+      max_tokens: 500
+    
+    standard:
+      model: openai/gpt-oss-20b
+      provider: openrouter
+      extract_reasoning: false  # Use standard content field
+      temperature: 0.5
+      max_tokens: 500
+    
+    web_search:
+      model: openai/gpt-4o-mini-search-preview
+      provider: openrouter
+      extract_reasoning: false
+      temperature: 0.1
+      max_tokens: 800
+    
+    fast:
+      model: meta-llama/llama-3.1-8b-instruct:free
+      provider: openrouter
+      extract_reasoning: false
+      temperature: 0.3
+      max_tokens: 300
+    
+    local:
+      model: gpt-oss-20b
+      provider: ollama
+      extract_reasoning: false
+      temperature: 0.7
+      max_tokens: 500
+
+# Agent Inference Assignments: Map agents to inference packs
+agent_inference:
+  queen: standard
+  divergent: web_search
+  convergent: reasoning
+  critical: standard
+  summarizer: standard
+
 agents:
   ttl:
     idle_timeout_minutes: 10

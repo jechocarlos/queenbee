@@ -1,369 +1,490 @@
 # QueenBee 🐝
 
-**Meta-Agent Orchestration System with Specialized Thinking Agents**
+**Intelligent Multi-Agent Orchestration System**
 
-![Tests](https://img.shields.io/badge/tests-223%20passed%2C%202%20skipped-brightgreen)
+![Tests](https://img.shields.io/badge/tests-223%20passed-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-70%25-yellow)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-QueenBee is an intelligent agent orchestration system that dynamically spawns specialized thinking agents to tackle complex problems through divergent exploration, convergent synthesis, and critical analysis.
+QueenBee is a sophisticated agent orchestration platform that coordinates specialized AI agents to solve complex problems through collaborative thinking. Every query is analyzed by a team of experts using divergent exploration, convergent synthesis, and critical validation.
+
+---
+
+## 🎯 What Makes QueenBee Different?
+
+**Every Request Gets Full Team Analysis** - No matter how simple or complex your question, QueenBee delegates to a team of specialized agents who collaborate in real-time:
+
+- **🌟 Divergent Thinker**: Explores multiple perspectives and creative approaches
+- **🔗 Convergent Thinker**: Synthesizes insights and prioritizes solutions  
+- **🔍 Critical Thinker**: Validates reasoning and identifies risks
+- **📋 Summarizer**: Generates rolling updates and final synthesis
+
+**Live Progress Updates** - Watch agents think and contribute in real-time with rolling summaries that show emerging insights as the discussion unfolds.
+
+**Flexible AI Providers** - Choose between local (Ollama) or cloud (OpenRouter) LLMs:
+- **Ollama**: Private, free, runs locally
+- **OpenRouter**: Access Claude, GPT-4, and premium models
+
+---
 
 ## ✨ Key Features
 
-- **🎯 Pure Orchestration**: Queen agent delegates all requests to specialist team
-- **🧠 Multi-Agent Collaboration**: Four specialist agents work together on every query
-  - **Divergent Agent**: Explores multiple perspectives and creative approaches
-  - **Convergent Agent**: Synthesizes insights and ranks recommendations
-  - **Critical Agent**: Validates solutions and identifies risks
-  - **Summarizer Agent**: Generates rolling summaries and final synthesis
-- **📊 Live Progress Updates**: Real-time rolling summaries show emerging insights
-- **⚡ Real-time Streaming**: LLM responses stream token-by-token for immediate feedback
-- **💬 Live Chat History**: View entire conversation with `history` command
-- **🔄 Async Worker Processes**: Specialists run in background for true parallelism
-- **🗄️ Persistent Memory**: PostgreSQL-backed agent state, tasks, and knowledge
-  - Robust connection management with automatic reconnection
-  - Transaction safety with commit/rollback
-  - Context manager support for clean resource handling
-- **🤖 Flexible LLM Backend**: Choose your AI provider
-  - **Ollama**: Local LLM for privacy and control
-  - **OpenRouter**: Access to Claude, GPT-4, and other premium models
-- **⏰ Activity-Based TTL**: Agents expire after inactivity, keeping system lean
+### Core Capabilities
+- 🎯 **Pure Orchestration**: Queen agent delegates all work to specialist team
+- 🧠 **Multi-Agent Collaboration**: Four specialists tackle every query together
+- 📊 **Real-Time Insights**: Live rolling summaries show progress during discussion
+- ⚡ **Streaming Responses**: Token-by-token updates for immediate feedback
+- 🔄 **Async Processing**: Specialists run in parallel background workers
+- 💾 **Persistent State**: PostgreSQL-backed memory, tasks, and knowledge
 
-## Architecture
+### LLM Provider Support
+- 🏠 **Ollama** (Local): Privacy-focused, free, full control
+- ☁️ **OpenRouter** (Cloud): Premium models (Claude, GPT-4, etc.)
+- 🔄 **Seamless Switching**: Change providers without losing history
+- 🛡️ **Smart Rate Limiting**: Built-in protection against API limits
 
-```
-User Input
-    ↓
-Queen Agent (Pure Orchestrator)
-    ↓
-Task Queue → Specialist Discussion
-                ↓
-     ┌──────────┼──────────┐
-     ↓          ↓          ↓
- Divergent  Convergent  Critical
- (Explore)  (Synthesize) (Validate)
-     ↓          ↓          ↓
-     └──────────┼──────────┘
-                ↓
-        Summarizer Agent
-     (Rolling + Final Synthesis)
-                ↓
-      Queen's Final Response
-                ↓
-                    Collaborative Response
-```
+### Developer Experience
+- 💬 **Interactive CLI**: Rich terminal UI with live updates
+- 🔍 **Full History**: Review entire conversations with `history` command
+- 🧪 **Well-Tested**: 223 passing tests, 70% coverage
+- 📚 **Comprehensive Docs**: Architecture, API, and deployment guides
 
-## Quick Start
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.14+
-- Docker & Docker Compose
-- Ollama (or use containerized version)
+- **Python 3.14+**
+- **Docker & Docker Compose**  
+- **Ollama** (for local mode) or **OpenRouter API key** (for cloud mode)
 
 ### Installation
 
-1. **Clone the repository**:
+1. **Clone and Setup**
 ```bash
 git clone https://github.com/jechocarlos/queenbee.git
 cd queenbee
-```
-
-2. **Set up environment**:
-```bash
 cp .env.example .env
-# Edit .env with your configuration
 ```
 
-3. **Start infrastructure** (local mode):
+2. **Choose Your LLM Provider**
+
+**Option A: Local with Ollama (Private & Free)**
 ```bash
+# Start infrastructure
 docker-compose -f docker-compose.local.yml up -d
-```
 
-4. **Pull Ollama model**:
-```bash
+# Pull your preferred model
 docker exec -it queenbee-ollama ollama pull llama3.1:8b
 ```
 
-5. **Install Python dependencies**:
+**Option B: Cloud with OpenRouter (Premium Models)**
 ```bash
-pip install -e .
-```
+# Add API key to .env
+echo "OPENROUTER_API_KEY=sk-or-v1-..." >> .env
 
-6. **Run migrations**:
-```bash
-python scripts/migrate.py
-```
-
-7. **Start QueenBee**:
-
-**With Ollama (local):**
-```bash
-queenbee
-```
-
-**With OpenRouter (cloud):**
-```bash
-# Add your OpenRouter API key to .env
-echo "OPENROUTER_API_KEY=your_key_here" >> .env
-
-# Run with OpenRouter
-queenbee-openrouter
-```
-
-## Usage
-
-### Every Request Gets Full Team Analysis
-```
-> What's the capital of France?
-
-[Queen] Delegating to my specialist team for collaborative analysis...
-
-🔵 Divergent #1
-France's capital is Paris, known for the Eiffel Tower, Louvre Museum, and as a cultural hub...
-
-🟢 Convergent #1
-Paris is definitively the capital of France, both politically and culturally...
-
-🔴 Critical #1
-Confirmed: Paris has been France's capital since 987 CE...
-
-📋 FINAL SYNTHESIS
-Paris is the capital of France, serving as the political, cultural, and economic center.
-
-🐝 QUEEN'S RESPONSE
-Paris is the capital of France.
-```
-
-### Complex Analysis Example
-```
-> Should I use microservices or a monolith for my startup?
-
-[Queen] Delegating to my specialist team for collaborative analysis...
-
-🔵 Divergent #1
-Let's explore multiple architectural approaches: microservices for scalability...
-
-🟢 Convergent #1
-Synthesizing the perspectives: start with a modular monolith...
-
-🔴 Critical #1
-Key concerns: operational complexity vs development speed...
-
-💭 Rolling Summary
-The team is analyzing trade-offs between microservices (scalability, complexity) 
-and monoliths (simplicity, faster initial development)...
-
-[Discussion continues...]
-
-📋 FINAL SYNTHESIS
-For a startup, begin with a modular monolith to validate product-market fit quickly. 
-Extract microservices only when specific scaling bottlenecks emerge. Key trade-off: 
-operational complexity vs development velocity.
-
-🐝 QUEEN'S RESPONSE
-I recommend starting with a modular monolith architecture for your startup...
-```
-
-[Queen] Analysis complete. Here's what the team found:
-[Synthesized findings from all three specialists]
-```
-
-## Configuration
-
-### Environment Variables (`.env`)
-
-```bash
-# Common
-LOG_LEVEL=INFO
-
-# Ollama (local LLM)
-OLLAMA_HOST=http://localhost:11434
-
-# OpenRouter (cloud LLM - optional)
-OPENROUTER_API_KEY=your_api_key_here
-
-# Database (local deployment)
-DB_HOST=postgres
-DB_PORT=5432
-DB_NAME=queenbee
-DB_USER=queenbee
-DB_PASSWORD=your_password
-
-# Database (remote deployment)
-# DB_HOST=your-remote-host.com
-# DB_SSL_MODE=require
-```
-
-### System Configuration (`config.yaml`)
-
-See `config.yaml` for full configuration options including:
-- Agent TTL settings
-- Consensus parameters
-- **Ollama**: Local model selection (llama3.1:8b by default)
-- **OpenRouter**: Cloud model selection (anthropic/claude-3.5-sonnet by default)
-- Specialist behavior tuning
-
-### LLM Provider Selection
-
-**Use Ollama (local, private, free):**
-```bash
-queenbee
-```
-
-**Use OpenRouter (cloud, premium models):**
-```bash
-queenbee-openrouter
-```
-
-Both commands use the same configuration and database - only the LLM provider changes. You can switch between providers anytime without losing conversation history.
-
-### Rate Limiting (OpenRouter)
-
-OpenRouter integration includes intelligent rate limiting:
-
-```yaml
-# config.yaml
-openrouter:
-  requests_per_minute: 16  # Free tier limit
-  max_retries: 3           # Retry on rate limit
-  retry_delay: 5           # Seconds between retries
-```
-
-**How it works:**
-- **Token Bucket Algorithm**: Automatically throttles requests to respect provider limits
-- **Proactive Limiting**: Prevents hitting rate limits by tracking usage locally
-- **Automatic Retries**: Handles 429 errors with exponential backoff
-- **Thread-Safe**: Works correctly with multiple specialist agents running concurrently
-
-**Rate Limit Tiers:**
-- **Free**: 16 requests/minute (default)
-- **Paid Plans**: Update `requests_per_minute` in config to match your tier
-
-## Deployment Modes
-
-### Local Development
-All services containerized:
-```bash
-docker-compose -f docker-compose.local.yml up -d
-```
-
-### Remote Database
-Ollama only, connect to external PostgreSQL:
-```bash
+# Start database only
 docker-compose -f docker-compose.remote.yml up -d
 ```
 
-## Project Structure
+3. **Install & Initialize**
+```bash
+# Install QueenBee
+pip install -e .
 
-```
-queenbee/
-├── .github/
-│   ├── SPECS.md          # System specification
-│   └── TODO.md           # Development tasks
-├── src/queenbee/
-│   ├── agents/           # Agent implementations
-│   ├── cli/              # Command-line interface
-│   ├── config/           # Configuration management
-│   ├── db/               # Database layer
-│   └── session/          # Session management
-├── prompts/              # Agent system prompts
-├── migrations/           # Database migrations
-├── tests/                # Test suite
-├── config.yaml           # System configuration
-├── .env.example          # Environment template
-└── pyproject.toml        # Python package config
+# Run database migrations
+python scripts/migrate.py
 ```
 
-## Development
+4. **Launch**
+```bash
+# With Ollama (local)
+queenbee
+
+# With OpenRouter (cloud)
+queenbee-openrouter
+```
+
+---
+
+## 💡 Usage Examples
+
+### Simple Query
+```
+You: What's the capital of France?
+
+Queen is thinking...
+🐝 Starting Live Collaborative Discussion...
+
+[🔗 Convergent: thinking, 🌟 Divergent: thinking, 🔍 Critical: thinking]
+
+🔗 Convergent #1
+Paris is the capital of France, serving as the political, economic, and 
+cultural center since 987 CE...
+
+🌟 Divergent #1  
+Let me explore different angles: Paris is not just politically significant
+but also a global fashion, art, and culinary capital...
+
+🔍 Critical #1
+Confirmed: Paris has been France's capital for over 1,000 years. No 
+significant risks or alternative interpretations...
+
+────────────────────────────────────────────────────────────────────────────────
+📝 FINAL SUMMARY
+Paris is the capital of France, both politically and culturally. It has served 
+this role since the late 10th century and is a major global center for art, 
+fashion, and commerce.
+────────────────────────────────────────────────────────────────────────────────
+
+✓ Discussion complete!
+```
+
+### Complex Analysis
+```
+You: Should I use microservices or a monolith for my startup?
+
+Queen is thinking...
+🐝 Starting Live Collaborative Discussion...
+
+💭 Rolling Summary (updating every 10s)
+The team is analyzing architectural trade-offs. Divergent explores multiple 
+patterns, Convergent synthesizes recommendations for MVP speed, Critical 
+identifies operational complexity risks...
+
+[Multiple rounds of discussion...]
+
+────────────────────────────────────────────────────────────────────────────────
+📝 FINAL SUMMARY
+For a startup, begin with a well-structured modular monolith to validate 
+product-market fit quickly while maintaining clean boundaries. This approach 
+provides:
+
+1. Faster initial development (single codebase, shared resources)
+2. Easier debugging and deployment (one application to manage)
+3. Lower operational complexity (no distributed systems overhead)
+4. Clear extraction path (modules become microservices when needed)
+
+Extract microservices only when you face specific scaling bottlenecks (e.g., 
+one module needs different compute resources) or team bottlenecks (separate 
+teams need independent deployment). Key trade-off: operational complexity vs 
+development velocity. Start simple, extract as needed.
+────────────────────────────────────────────────────────────────────────────────
+
+✓ Discussion complete!
+```
+
+---
+
+## ⚙️ Configuration
+
+### LLM Provider Setup
+
+**Ollama (Local)**
+```yaml
+# config.yaml
+ollama:
+  host: http://localhost:11434
+  model: llama3.1:8b
+  timeout: 300
+```
+
+**OpenRouter (Cloud)**
+```yaml
+# config.yaml
+openrouter:
+  api_key: ${OPENROUTER_API_KEY}
+  model: anthropic/claude-3.5-sonnet
+  base_url: https://openrouter.ai/api/v1
+  timeout: 300
+  verify_ssl: true
+  
+  # Rate limiting (adjust to your tier)
+  requests_per_minute: 16  # Free tier default
+  max_retries: 3
+  retry_delay: 5
+```
+
+### Database Configuration
+```bash
+# .env file
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=queenbee
+DB_USER=queenbee
+DB_PASSWORD=your_secure_password
+
+# For remote PostgreSQL
+# DB_HOST=your-db-host.com
+# DB_SSL_MODE=require
+```
+
+### Agent Behavior Tuning
+```yaml
+# config.yaml
+agents:
+  ttl:
+    idle_timeout_minutes: 10
+    check_interval_seconds: 30
+  
+  max_concurrent_specialists: 10
+  
+  divergent:
+    max_iterations: 25
+    max_tokens: 500
+  
+  convergent:
+    max_iterations: 25
+    max_tokens: 500
+  
+  critical:
+    max_iterations: 25
+    max_tokens: 500
+
+consensus:
+  discussion_rounds: 20
+  specialist_timeout_seconds: 300
+  summary_interval_seconds: 10  # Rolling summary update frequency
+```
+
+---
+
+## 🏗️ Architecture
+
+### System Flow
+```
+User Input
+    ↓
+Queen Agent (Orchestrator)
+    ↓
+Task Queue → Specialist Discussion (Parallel Workers)
+    ↓
+┌───────────┼───────────┬────────────┐
+│           │           │            │
+🌟 Divergent  🔗 Convergent  🔍 Critical  📋 Summarizer
+(Explore)    (Synthesize)  (Validate)   (Rolling Updates)
+│           │           │            │
+└───────────┴───────────┴────────────┘
+    ↓
+Final Synthesis
+    ↓
+Queen's Response
+    ↓
+User
+```
+
+### Key Components
+
+**Agent Layer** (`src/queenbee/agents/`)
+- `base.py`: Shared agent infrastructure with LLM auto-detection
+- `queen.py`: Orchestration and delegation
+- `divergent.py`: Creative exploration
+- `convergent.py`: Solution synthesis
+- `critical.py`: Validation and risk assessment
+- `summarizer.py`: Rolling and final summaries
+
+**Worker System** (`src/queenbee/workers/`)
+- Async multi-process architecture
+- Live discussion updates
+- Task queue management
+- Rolling summary generation
+
+**Database Layer** (`src/queenbee/db/`)
+- PostgreSQL persistence
+- Session management
+- Agent state tracking
+- Chat history
+- Rate limit persistence (OpenRouter)
+
+**CLI** (`src/queenbee/cli/`)
+- Rich terminal UI
+- Live discussion viewer
+- Command processing
+- Provider-specific entry points
+
+---
+
+## 🧪 Development
 
 ### Running Tests
 ```bash
-pytest                              # Run all tests
-pytest -v                          # Verbose output
-pytest --cov                       # With coverage report
-pytest tests/test_agents.py        # Specific test file
+# Full test suite
+pytest
+
+# With coverage report
+pytest --cov=src --cov-report=html
+
+# Specific test file
+pytest tests/test_agents.py -v
+
+# Watch mode
+pytest-watch
 ```
 
-**Latest Test Results:**
-- ✅ 223 tests passed
-- ⚠️ 2 tests skipped (environment-dependent)
-- 📊 70% code coverage
-- ⏱️ Completed in 173 seconds (2m 53s)
+**Current Status**: ✅ 223 passed, ⚠️ 2 skipped, 📊 70% coverage
 
 ### Code Quality
 ```bash
+# Format code
 black src/ tests/
-ruff check src/ tests/
+
+# Lint
+ruff check src/ tests/ --fix
+
+# Type checking
 mypy src/
 ```
 
 ### Database Migrations
 ```bash
+# Run all migrations
 python scripts/migrate.py
+
+# Check migration status
+psql -h localhost -U queenbee -d queenbee -c "\dt"
 ```
 
-## Specialist Thinking Modes
-
-### Queen Agent (Pure Orchestrator)
-- Receives all user requests
-- Delegates to specialist team for analysis
-- Receives synthesis from SummarizerAgent
-- Presents final response to user
-- No direct analysis or complexity checking
-
-### Divergent Thinker
-- Explores possibilities
-- Generates multiple approaches
-- Challenges assumptions
-- Identifies edge cases
-
-### Convergent Thinker
-- Evaluates options
-- Creates action plans
-- Prioritizes solutions
-- Resolves contradictions
-
-### Critical Thinker
-- Identifies flaws
-- Assesses risks
-- Validates assumptions
-- Tests robustness
-
-### Summarizer Agent
-- Generates rolling summaries during discussion
-- Synthesizes insights from all perspectives
-- Creates final comprehensive synthesis
-- Focuses on substance over process
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Roadmap
-
-- [x] Phase 1: MVP with single specialist
-- [ ] Phase 2: Full consensus protocol
-- [ ] Phase 3: Production polish
-- [ ] Web UI interface
-- [ ] Multi-user support
-- [ ] Agent learning persistence
-
-## Support
-
-- Issues: https://github.com/jechocarlos/queenbee/issues
-- Documentation: See `/docs` directory
-- Specification: See `.github/SPECS.md`
+### Project Structure
+```
+queenbee/
+├── src/queenbee/
+│   ├── agents/          # Agent implementations
+│   ├── cli/             # Command-line interface  
+│   ├── config/          # Configuration management
+│   ├── db/              # Database layer & models
+│   ├── llm/             # LLM client implementations
+│   ├── session/         # Session management
+│   └── workers/         # Multi-process orchestration
+├── prompts/             # Agent system prompts
+├── migrations/          # SQL database migrations
+├── tests/               # Comprehensive test suite
+├── docs/                # Detailed documentation
+├── .github/
+│   ├── SPECS.md         # System specification
+│   └── TODO.md          # Development roadmap
+├── config.yaml          # System configuration
+├── .env.example         # Environment template
+├── pyproject.toml       # Python package config
+└── docker-compose.*.yml # Deployment configs
+```
 
 ---
 
-Built with ❤️ using Python, PostgreSQL, and Ollama
+## 🚢 Deployment
+
+### Local Development (All Services)
+```bash
+docker-compose -f docker-compose.local.yml up -d
+```
+Includes: PostgreSQL + Ollama + QueenBee (optional)
+
+### Production (Remote Database)
+```bash
+docker-compose -f docker-compose.remote.yml up -d
+```
+Includes: Ollama only (connect to external PostgreSQL)
+
+### Environment Variables
+```bash
+# .env file
+LOG_LEVEL=INFO                    # DEBUG, INFO, WARNING, ERROR
+OLLAMA_HOST=http://localhost:11434
+OPENROUTER_API_KEY=sk-or-v1-...  # Optional
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=queenbee
+DB_USER=queenbee
+DB_PASSWORD=changeme
+DB_SSL_MODE=prefer               # require for remote DB
+```
+
+---
+
+## 📚 Documentation
+
+- **[Architecture](docs/architecture_update.md)**: System design and components
+- **[OpenRouter Integration](docs/openrouter.md)**: Cloud LLM setup and rate limiting
+- **[Specialist Agents](docs/specialist-agents.md)**: Agent roles and behaviors
+- **[Testing](docs/testing.md)**: Test suite and coverage
+- **[Getting Started](docs/getting-started.md)**: Detailed setup guide
+- **[Specification](.github/SPECS.md)**: Complete system requirements
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how to get started:
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Make** your changes with tests
+4. **Run** the test suite (`pytest`)
+5. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+6. **Push** to your branch (`git push origin feature/amazing-feature`)
+7. **Open** a Pull Request
+
+### Contribution Guidelines
+- Write tests for new features
+- Maintain or improve code coverage
+- Follow existing code style (black, ruff)
+- Update documentation as needed
+- Add entries to CHANGELOG
+
+---
+
+## 🗺️ Roadmap
+
+### Completed ✅
+- [x] Multi-agent collaboration system
+- [x] Ollama (local) LLM integration
+- [x] OpenRouter (cloud) LLM integration
+- [x] Real-time streaming responses
+- [x] Live rolling summaries
+- [x] PostgreSQL persistence
+- [x] Rate limit management
+- [x] Comprehensive test suite
+- [x] Docker deployment
+
+### In Progress 🚧
+- [ ] Phase 2: Full consensus protocol
+- [ ] Enhanced agent learning
+- [ ] Performance optimizations
+
+### Planned 🎯
+- [ ] Web UI interface
+- [ ] Multi-user support  
+- [ ] Additional LLM providers
+- [ ] Agent personality customization
+- [ ] Knowledge graph integration
+- [ ] Real-time collaboration features
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+## 🆘 Support
+
+- **Issues**: [GitHub Issues](https://github.com/jechocarlos/queenbee/issues)
+- **Documentation**: See `/docs` directory
+- **Discussions**: [GitHub Discussions](https://github.com/jechocarlos/queenbee/discussions)
+
+---
+
+## 🙏 Acknowledgments
+
+Built with ❤️ using:
+- [Python 3.14](https://www.python.org/)
+- [Ollama](https://ollama.ai/) - Local LLM runtime
+- [OpenRouter](https://openrouter.ai/) - Cloud LLM API
+- [PostgreSQL](https://www.postgresql.org/) - Database
+- [Rich](https://rich.readthedocs.io/) - Terminal UI
+
+---
+
+**Made with collaborative AI thinking** 🐝

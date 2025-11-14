@@ -100,6 +100,18 @@ class SpecialistWorker:
         rolling_summary = {"content": "", "last_update": 0}  # Track rolling summary
         web_search_events = []  # Track web search requests: {"agent": "Divergent", "query": "..."}
         
+        # Statistics tracking
+        start_time = time.time()
+        stats = {
+            "agent_contributions": {},  # Count per agent
+            "agent_tokens": {},  # {agent: {"prompt": X, "completion": Y}}
+            "agent_response_times": {},  # {agent: [time1, time2, ...]}
+            "agent_passes": {},  # Count of passes per agent
+            "web_searches": 0,
+            "web_searches_by_agent": {},
+            "peak_concurrent_thinking": 0
+        }
+        
         def update_rolling_summary():
             """Background thread that continuously updates the rolling summary using SummarizerAgent."""
             with self.db:
@@ -186,9 +198,16 @@ class SpecialistWorker:
                         )
                         
                         if should_contribute:
+                            # Track response start time
+                            response_start = time.time()
+                            
                             # Mark as thinking and update UI
                             with discussion_lock:
                                 agent_status[agent_name] = "thinking"
+                                
+                                # Track peak concurrent thinking
+                                thinking_count = sum(1 for s in agent_status.values() if s == "thinking")
+                                stats["peak_concurrent_thinking"] = max(stats["peak_concurrent_thinking"], thinking_count)
                                 
                                 # Update task result so live viewer sees the status change
                                 intermediate_result = {
@@ -227,7 +246,7 @@ class SpecialistWorker:
                                 search_query = response.replace("__WEB_SEARCH_REQUEST__", "", 1)
                                 logger.info(f"{agent_name} requested web search: {search_query[:100]}")
                                 
-                                # Record web search event
+                                # Record web search event and track statistics
                                 with discussion_lock:
                                     web_search_events.append({
                                         "agent": agent_name,
@@ -235,6 +254,10 @@ class SpecialistWorker:
                                         "timestamp": time.time()
                                     })
                                     agent_status["WebSearcher"] = "searching"
+                                    
+                                    # Track web search stats
+                                    stats["web_searches"] += 1
+                                    stats["web_searches_by_agent"][agent_name] = stats["web_searches_by_agent"].get(agent_name, 0) + 1
                                     
                                     # Update UI immediately
                                     intermediate_result = {
@@ -298,7 +321,18 @@ class SpecialistWorker:
                                     # Response was all tool syntax, treat as pass
                                     logger.info(f"{agent_name} response was only tool syntax, treating as pass")
                                     agent_status[agent_name] = "idle"
+                                    
+                                    # Track pass
+                                    with discussion_lock:
+                                        stats["agent_passes"][agent_name] = stats["agent_passes"].get(agent_name, 0) + 1
                                     continue
+                                
+                                # Track response time
+                                response_time = time.time() - response_start
+                                with discussion_lock:
+                                    if agent_name not in stats["agent_response_times"]:
+                                        stats["agent_response_times"][agent_name] = []
+                                    stats["agent_response_times"][agent_name].append(response_time)
                                 
                                 # Mark as contributing
                                 with discussion_lock:
@@ -315,6 +349,9 @@ class SpecialistWorker:
                                 with discussion_lock:
                                     discussion.append(contribution)
                                     
+                                    # Track contribution count
+                                    stats["agent_contributions"][agent_name] = stats["agent_contributions"].get(agent_name, 0) + 1
+                                    
                                     # Store intermediate result with agent status and rolling summary
                                     intermediate_result = {
                                         "status": "in_progress",
@@ -329,6 +366,9 @@ class SpecialistWorker:
                                 contribution_count += 1
                                 logger.info(f"{agent_name} contributed (#{contribution_count})")
                             else:
+                                # Track explicit pass
+                                with discussion_lock:
+                                    stats["agent_passes"][agent_name] = stats["agent_passes"].get(agent_name, 0) + 1
                                 logger.info(f"{agent_name} passed")
                         
                         # Mark as idle after decision/contribution and update UI
@@ -435,6 +475,32 @@ class SpecialistWorker:
         with discussion_lock:
             last_rolling = rolling_summary["content"]
         
+        # Calculate final statistics
+        end_time = time.time()
+        duration = end_time - start_time
+        
+        # Calculate average response times
+        avg_response_times = {}
+        for agent, times in stats["agent_response_times"].items():
+            if times:
+                avg_response_times[agent] = sum(times) / len(times)
+        
+        # Compile final statistics
+        final_stats = {
+            "duration_seconds": round(duration, 2),
+            "total_messages": len(discussion),
+            "contributions_per_agent": stats["agent_contributions"],
+            "passes_per_agent": stats["agent_passes"],
+            "web_searches_total": stats["web_searches"],
+            "web_searches_by_agent": stats["web_searches_by_agent"],
+            "average_response_time_seconds": {k: round(v, 2) for k, v in avg_response_times.items()},
+            "peak_concurrent_thinking": stats["peak_concurrent_thinking"],
+            # Token stats will be added when we track LLM usage
+            "token_usage_per_agent": stats.get("agent_tokens", {})
+        }
+        
+        logger.info(f"Discussion complete - Duration: {duration:.2f}s, Messages: {len(discussion)}")
+        
         # Generate final comprehensive summary from Queen using the rolling summary
         logger.info("Generating Queen's final summary...")
         final_summary = self._generate_queen_summary(user_input, discussion, last_rolling)
@@ -445,7 +511,8 @@ class SpecialistWorker:
             "total_contributions": len(discussion),
             "contributions": discussion,
             "rolling_summary": last_rolling,  # Last rolling summary from live updates
-            "summary": final_summary  # Final comprehensive summary
+            "summary": final_summary,  # Final comprehensive summary
+            "statistics": final_stats  # Discussion statistics
         }
 
     def _generate_queen_summary(self, user_input: str, discussion: list[dict], rolling_summary: str = "") -> str:

@@ -107,6 +107,72 @@ class LiveDiscussionViewer:
                             self.console.print(final_summary, style="green", soft_wrap=True)
                             self.console.print("─" * 80, style="green")
                         
+                        # Print discussion statistics
+                        statistics = result.get("statistics", {})
+                        if statistics:
+                            self.console.print()
+                            self.console.print("─" * 80, style="cyan")
+                            self.console.print("📊 DISCUSSION STATISTICS", style="bold cyan")
+                            self.console.print()
+                            
+                            # Duration
+                            duration = statistics.get("duration_seconds", 0)
+                            minutes = int(duration // 60)
+                            seconds = int(duration % 60)
+                            duration_str = f"{minutes}m {seconds}s" if minutes > 0 else f"{seconds}s"
+                            self.console.print(f"  ⏱️  Duration: {duration_str}", style="cyan")
+                            
+                            # Total messages
+                            total_msgs = statistics.get("total_messages", 0)
+                            self.console.print(f"  💬 Total Messages: {total_msgs}", style="cyan")
+                            
+                            # Contributions per agent
+                            contrib_per_agent = statistics.get("contributions_per_agent", {})
+                            if contrib_per_agent:
+                                self.console.print()
+                                self.console.print("  📝 Contributions per Agent:", style="cyan")
+                                for agent, count in sorted(contrib_per_agent.items(), key=lambda x: x[1], reverse=True):
+                                    emoji = self.AGENT_EMOJIS.get(agent, "🤖")
+                                    self.console.print(f"     {emoji} {agent}: {count}", style="cyan")
+                            
+                            # Passes per agent
+                            passes = statistics.get("passes_per_agent", {})
+                            if passes:
+                                self.console.print()
+                                self.console.print("  ⏭️  Passes per Agent:", style="dim cyan")
+                                for agent, count in sorted(passes.items()):
+                                    emoji = self.AGENT_EMOJIS.get(agent, "🤖")
+                                    self.console.print(f"     {emoji} {agent}: {count}", style="dim cyan")
+                            
+                            # Web searches
+                            web_total = statistics.get("web_searches_total", 0)
+                            if web_total > 0:
+                                self.console.print()
+                                self.console.print(f"  🔎 Web Searches: {web_total}", style="bright_green")
+                                web_by_agent = statistics.get("web_searches_by_agent", {})
+                                if web_by_agent:
+                                    for agent, count in sorted(web_by_agent.items(), key=lambda x: x[1], reverse=True):
+                                        emoji = self.AGENT_EMOJIS.get(agent, "🤖")
+                                        self.console.print(f"     {emoji} {agent}: {count}", style="bright_green")
+                            
+                            # Average response times
+                            avg_times = statistics.get("average_response_time_seconds", {})
+                            if avg_times:
+                                self.console.print()
+                                self.console.print("  ⚡ Average Response Time:", style="yellow")
+                                for agent, avg_time in sorted(avg_times.items(), key=lambda x: x[1]):
+                                    emoji = self.AGENT_EMOJIS.get(agent, "🤖")
+                                    self.console.print(f"     {emoji} {agent}: {avg_time:.2f}s", style="yellow")
+                            
+                            # Peak concurrent
+                            peak = statistics.get("peak_concurrent_thinking", 0)
+                            if peak > 0:
+                                self.console.print()
+                                self.console.print(f"  🔥 Peak Concurrent Thinking: {peak} agents", style="magenta")
+                            
+                            self.console.print()
+                            self.console.print("─" * 80, style="cyan")
+                        
                         self.console.print()
                         self.console.print("✓ Discussion complete!", style="bold green")
                         return result

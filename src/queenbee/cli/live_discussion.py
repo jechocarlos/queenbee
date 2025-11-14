@@ -91,8 +91,11 @@ class LiveDiscussionViewer:
                     if status in ["completed", "failed"]:
                         contributions = result.get("contributions", [])
                         
-                        # Print any remaining contributions we haven't shown
+                        # Print any remaining contributions we haven't shown (skip hidden ones like web search results)
                         for i, contrib in enumerate(contributions):
+                            # Skip hidden contributions (web search results)
+                            if contrib.get("hidden", False):
+                                continue
                             contrib_id = f"{contrib.get('agent', '')}_{i}"
                             if contrib_id not in displayed_contributions:
                                 self._print_contribution(contrib, is_new=False)

@@ -454,8 +454,8 @@ class SpecialistWorker:
             if all_idle and len(discussion) > 0:
                 # All agents idle, but wait a bit to be sure
                 all_idle_count += 1
-                if all_idle_count >= 6:  # 6 seconds of all idle
-                    logger.info("All agents idle for 6 seconds, stopping discussion")
+                if all_idle_count >= 15:  # 15 seconds of all idle
+                    logger.info("All agents idle for 15 seconds, stopping discussion")
                     break
             else:
                 # Reset counter if any agent is active

@@ -60,7 +60,7 @@ class LiveDiscussionViewer:
         
         # Print header
         self.console.print("\n" + "=" * 80, style="cyan")
-        self.console.print("💬 LIVE DISCUSSION", style="bold bright_white", justify="center")
+        self.console.print("LIVE DISCUSSION", style="bold bright_white", justify="center")
         self.console.print("=" * 80, style="cyan")
         self.console.print()
         

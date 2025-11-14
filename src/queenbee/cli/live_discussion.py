@@ -99,10 +99,10 @@ class LiveDiscussionViewer:
                         final_summary = result.get("summary", "")
                         if final_summary:
                             self.console.print()
-                            self.console.print("─" * 80, style="yellow")
-                            self.console.print("📝 FINAL SUMMARY", style="bold yellow")
-                            self.console.print(final_summary, style="yellow", soft_wrap=True)
-                            self.console.print("─" * 80, style="yellow")
+                            self.console.print("─" * 80, style="green")
+                            self.console.print("📝 FINAL SUMMARY", style="bold green")
+                            self.console.print(final_summary, style="green", soft_wrap=True)
+                            self.console.print("─" * 80, style="green")
                         
                         self.console.print()
                         self.console.print("✓ Discussion complete!", style="bold green")
@@ -130,10 +130,10 @@ class LiveDiscussionViewer:
                     # Print/update rolling summary if changed
                     if rolling_summary and rolling_summary != last_summary:
                         self.console.print()
-                        self.console.print("─" * 80, style="dim yellow")
-                        self.console.print("📝 Summary (updating...)", style="yellow")
-                        self.console.print(rolling_summary, style="yellow", soft_wrap=True)
-                        self.console.print("─" * 80, style="dim yellow")
+                        self.console.print("─" * 80, style="dim green")
+                        self.console.print("📝 Summary (updating...)", style="green")
+                        self.console.print(rolling_summary, style="green", soft_wrap=True)
+                        self.console.print("─" * 80, style="dim green")
                         last_summary = rolling_summary
                         printed_something = True
                     

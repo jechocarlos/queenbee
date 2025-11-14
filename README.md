@@ -571,9 +571,19 @@ We welcome contributions! Here's how to get started:
 - [x] Docker deployment configs
 
 ### In Progress 🚧
-- [ ] Phase 2: Full consensus protocol
-- [ ] Enhanced agent learning
+- [ ] Phase 3: Production polish and refinements
+- [ ] Enhanced error handling and recovery
 - [ ] Performance optimizations
+- [ ] Advanced knowledge persistence
+
+### Planned 🎯
+- [ ] Web UI interface
+- [ ] Multi-user support
+- [ ] Additional LLM providers (Anthropic direct, Azure OpenAI)
+- [ ] Agent personality customization
+- [ ] Knowledge graph integration
+- [ ] Agent learning and adaptation
+- [ ] Real-time collaboration features
 
 ---
 

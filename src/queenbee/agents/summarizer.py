@@ -61,12 +61,20 @@ Here are the {len(contributions)} expert contributions made so far:
 
 {discussion_str}
 
-Provide a BRIEF summary (2-3 sentences max) of the KEY INSIGHTS and MAIN POINTS that have emerged. Focus on WHAT the experts are saying about the question, not the discussion process."""
+Provide a comprehensive summary of the KEY INSIGHTS, MAIN POINTS, and RECOMMENDATIONS that have emerged so far. 
+
+Include:
+- What perspectives have been shared
+- Key recommendations or solutions proposed
+- Important trade-offs or concerns raised
+- Current direction of the discussion
+
+Be thorough but concise - aim for a complete picture that would help someone understand the discussion without reading every contribution. 4-6 sentences is ideal."""
 
         # Use lower temperature for consistent, focused summarization
         response = self.ollama.generate(
             prompt=prompt,
-            system="You are a concise summarizer. Extract and synthesize key insights from expert discussions. Focus on the substance of what's being discussed, not meta-commentary about the discussion itself.",
+            system="You are an expert summarizer who creates comprehensive yet clear summaries. Extract and synthesize key insights from expert discussions, ensuring all important points are captured. Focus on the substance of what's being discussed, not meta-commentary about the discussion itself.",
             temperature=0.3,
             stream=stream
         )
@@ -118,18 +126,20 @@ ROLLING SUMMARY (generated during discussion):
 {rolling_context}COMPLETE DISCUSSION ({len(contributions)} contributions):
 {discussion_str}
 
-Synthesize this discussion into a clear, comprehensive answer. Focus on:
-1. The KEY INSIGHTS and RECOMMENDATIONS from the specialists
-2. Any critical concerns or trade-offs identified
-3. A direct, actionable answer to the user's question
+Synthesize this discussion into a clear, comprehensive answer that directly addresses the user's question.
 
-Your response should focus on WHAT WAS DISCUSSED (the substance), not how the discussion proceeded.
-Keep it concise: 4-5 sentences maximum."""
+Your synthesis should:
+1. Start with a direct answer to the question
+2. Include KEY INSIGHTS and RECOMMENDATIONS from the specialists
+3. Cover important TRADE-OFFS, CONCERNS, or CONSIDERATIONS raised
+4. Provide ACTIONABLE next steps or conclusions
+
+Be thorough and complete - this is the final response the user will see. The answer should stand on its own and fully address their question. Aim for 6-10 sentences to provide a comprehensive response."""
 
         # Use slightly higher temperature for synthesis
         response = self.ollama.generate(
             prompt=prompt,
-            system="You are an expert synthesizer. Create comprehensive yet concise summaries that capture the essence of multi-perspective discussions. Focus on insights, recommendations, and actionable conclusions.",
+            system="You are an expert synthesizer who creates thorough, well-structured answers. Synthesize multi-perspective discussions into complete, actionable responses that directly answer the user's question. Be comprehensive - users rely on this as their final answer.",
             temperature=0.4,
             stream=stream
         )

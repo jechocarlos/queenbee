@@ -108,7 +108,7 @@ class SpecialistWorker:
                 
                 try:
                     while not stop_event.is_set():
-                        time.sleep(4)  # Update every 4 seconds
+                        time.sleep(1.5)  # Update every 1.5 seconds for faster updates
                         
                         with discussion_lock:
                             current_discussion = discussion.copy()
@@ -180,9 +180,19 @@ class SpecialistWorker:
                         )
                         
                         if should_contribute:
-                            # Mark as thinking
+                            # Mark as thinking and update UI
                             with discussion_lock:
                                 agent_status[agent_name] = "thinking"
+                                
+                                # Update task result so live viewer sees the status change
+                                intermediate_result = {
+                                    "status": "in_progress",
+                                    "contributions": discussion.copy(),
+                                    "rolling_summary": rolling_summary["content"],
+                                    "task": user_input,
+                                    "agent_status": agent_status.copy()
+                                }
+                                self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
                             
                             logger.info(f"{agent_name} is thinking...")
                             
@@ -211,10 +221,11 @@ class SpecialistWorker:
                                 with discussion_lock:
                                     discussion.append(contribution)
                                     
-                                    # Store intermediate result with agent status
+                                    # Store intermediate result with agent status and rolling summary
                                     intermediate_result = {
                                         "status": "in_progress",
                                         "contributions": discussion.copy(),
+                                        "rolling_summary": rolling_summary["content"],
                                         "task": user_input,
                                         "agent_status": agent_status.copy()
                                     }
@@ -225,9 +236,19 @@ class SpecialistWorker:
                             else:
                                 logger.info(f"{agent_name} passed")
                         
-                        # Mark as idle after decision/contribution
+                        # Mark as idle after decision/contribution and update UI
                         with discussion_lock:
                             agent_status[agent_name] = "idle"
+                            
+                            # Update task result so live viewer sees the status change
+                            intermediate_result = {
+                                "status": "in_progress",
+                                "contributions": discussion.copy(),
+                                "rolling_summary": rolling_summary["content"],
+                                "task": user_input,
+                                "agent_status": agent_status.copy()
+                            }
+                            self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
                         
                         # Wait a bit before checking again (let others contribute)
                         time.sleep(2)
@@ -260,6 +281,20 @@ class SpecialistWorker:
             thread.start()
             threads.append(thread)
             logger.info(f"Started async agent: {agent_name}")
+        
+        # Give agents a moment to initialize, then send initial status
+        time.sleep(0.5)
+        with discussion_lock:
+            # Store initial state so live viewer has something to display immediately
+            initial_result = {
+                "status": "in_progress",
+                "contributions": [],
+                "rolling_summary": "",
+                "task": user_input,
+                "agent_status": agent_status.copy()
+            }
+            self.task_repo.set_task_result(task_id, json.dumps(initial_result))
+        logger.info("Sent initial status to live viewer")
         
         # Monitor discussion - stop only when ALL agents are idle
         iterations = 0

@@ -229,6 +229,7 @@ class QueenAgent(BaseAgent):
             # Generate Queen's final response
             queen_response = self._generate_final_response(user_input, summary)
             
+            # Display in a nice panel (this is the ONLY place it should be shown)
             console.print("\n")
             console.print(Panel(
                 f"[bold cyan]{queen_response}[/bold cyan]",
@@ -238,7 +239,9 @@ class QueenAgent(BaseAgent):
             ))
             console.print()
             
-            return queen_response
+            # Return a special marker to tell main.py NOT to print again
+            # The actual response is already displayed in the panel above
+            return f"__DISPLAYED__{queen_response}"
         else:
             total = results.get("total_contributions", 0)
             return f"Discussion complete with {total} contributions from the specialist team."

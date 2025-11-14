@@ -416,8 +416,21 @@ def main() -> int:
 
                         # Handle streaming response
                         if isinstance(response, str):
-                            # Non-streaming response
-                            console.print(f"\n[bold yellow]🐝 Queen[/bold yellow]: {response}\n")
+                            # Check if response was already displayed (specialist discussions)
+                            if response.startswith("__DISPLAYED__"):
+                                # Extract actual response for logging (strip marker)
+                                actual_response = response.replace("__DISPLAYED__", "", 1)
+                                # Don't print - already displayed in Panel
+                                # Just log to chat history
+                                chat_repo.add_message(
+                                    session_id=session_id,
+                                    agent_id=queen.agent_id,
+                                    role=MessageRole.QUEEN,
+                                    content=actual_response,
+                                )
+                            else:
+                                # Non-streaming response that hasn't been displayed yet
+                                console.print(f"\n[bold yellow]🐝 Queen[/bold yellow]: {response}\n")
                         else:
                             # Streaming response
                             full_response = stream_response(response)

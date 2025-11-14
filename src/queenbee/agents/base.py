@@ -38,41 +38,50 @@ class BaseAgent:
         self.db = db
         self.agent_repo = AgentRepository(db)
         
-        # Get inference pack for this agent type
+        # Determine provider from environment
+        provider = "openrouter" if os.environ.get('QUEENBEE_USE_OPENROUTER') == '1' else "ollama"
+        
+        # Get provider config
+        provider_config = config.inference_packs.openrouter if provider == "openrouter" else config.inference_packs.ollama
+        
+        # Get inference pack name for this agent type
         pack_name = self._get_inference_pack_name()
-        inference_pack = config.inference_packs.packs.get(pack_name)
+        
+        # Try to get the specified pack
+        inference_pack = provider_config.packs.get(pack_name)
         
         if not inference_pack:
-            logger.warning(f"Inference pack '{pack_name}' not found for {agent_type}, using defaults")
-            inference_pack = None
+            # Fall back to provider's default pack
+            default_pack_name = provider_config.default_pack
+            logger.warning(f"Pack '{pack_name}' not found in {provider}, falling back to '{default_pack_name}'")
+            inference_pack = provider_config.packs.get(default_pack_name)
+            pack_name = default_pack_name
         
-        # Initialize LLM based on inference pack or environment variable
-        if inference_pack:
-            # Use inference pack configuration
-            if inference_pack.provider == "openrouter":
-                from queenbee.llm.openrouter import OpenRouterClient
-                self.llm = OpenRouterClient(config.openrouter, db, inference_pack)
-                logger.info(f"Agent {agent_type} using inference pack '{pack_name}' with model {inference_pack.model}")
-            else:  # ollama
-                from queenbee.llm import OllamaClient
-
-                # Create custom config for this pack
-                ollama_config = config.ollama.model_copy()
-                ollama_config.model = inference_pack.model
-                self.llm = OllamaClient(ollama_config)
-                logger.info(f"Agent {agent_type} using inference pack '{pack_name}' with Ollama model {inference_pack.model}")
-        elif os.environ.get('QUEENBEE_USE_OPENROUTER'):
-            # Fallback to environment variable detection
+        if not inference_pack:
+            # If even default pack is not available, fail
+            raise ValueError(
+                f"Agent {agent_type} cannot be initialized: "
+                f"pack '{pack_name}' and default pack '{provider_config.default_pack}' "
+                f"not found in {provider} provider"
+            )
+        
+        # Initialize LLM based on provider
+        if provider == "openrouter":
             from queenbee.llm.openrouter import OpenRouterClient
-            self.llm = OpenRouterClient(config.openrouter, db)
-            logger.info(f"Agent {agent_type} initialized with OpenRouter (default)")
-        else:
+            self.llm = OpenRouterClient(config.openrouter, db, inference_pack)
+            logger.info(f"Agent {agent_type} using {provider}:{pack_name} with model {inference_pack.model}")
+        else:  # ollama
             from queenbee.llm import OllamaClient
-            self.llm = OllamaClient(config.ollama)
-            logger.info(f"Agent {agent_type} initialized with Ollama (default)")
+
+            # Create custom config for this pack
+            ollama_config = config.ollama.model_copy()
+            ollama_config.model = inference_pack.model
+            self.llm = OllamaClient(ollama_config)
+            logger.info(f"Agent {agent_type} using {provider}:{pack_name} with model {inference_pack.model}")
         
-        # Store inference pack for later use
+        # Store inference pack and provider for later use
         self.inference_pack = inference_pack
+        self.provider = provider
         
         # Keep ollama for backward compatibility
         self.ollama = self.llm
@@ -94,7 +103,7 @@ class BaseAgent:
         """Get inference pack name for this agent type.
 
         Returns:
-            Inference pack name from configuration.
+            Pack name from agent_inference configuration.
         """
         if self.agent_type == AgentType.QUEEN:
             return self.config.agent_inference.queen

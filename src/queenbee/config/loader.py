@@ -55,18 +55,24 @@ class OpenRouterConfig(BaseSettings):
 class InferencePack(BaseSettings):
     """Inference pack configuration for specific use cases."""
 
-    model: str = Field(..., description="Model identifier (e.g., 'openai/gpt-4o-mini')")
-    provider: str = Field(default="openrouter", description="Provider: 'ollama' or 'openrouter'")
-    extract_reasoning: bool = Field(default=True, description="Extract from reasoning field for reasoning models")
+    model: str = Field(..., description="Model identifier (e.g., 'openai/gpt-4o-mini' or 'llama3.1:8b')")
+    extract_reasoning: bool = Field(default=False, description="Extract from reasoning field for reasoning models")
     temperature: float = Field(default=0.7, description="Sampling temperature")
     max_tokens: int = Field(default=0, description="Max tokens (0 = no limit)")
 
 
-class InferencePacksConfig(BaseSettings):
-    """Collection of inference packs for different use cases."""
+class ProviderPacksConfig(BaseSettings):
+    """Collection of inference packs for a specific provider."""
 
-    # Define named inference packs
+    default_pack: str = Field(default="standard", description="Default pack name for this provider")
     packs: dict[str, InferencePack] = Field(default_factory=dict)
+
+
+class InferencePacksConfig(BaseSettings):
+    """Collection of inference packs grouped by provider."""
+
+    openrouter: ProviderPacksConfig = Field(default_factory=ProviderPacksConfig)
+    ollama: ProviderPacksConfig = Field(default_factory=ProviderPacksConfig)
 
 
 class AgentInferenceConfig(BaseSettings):

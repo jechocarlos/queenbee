@@ -28,52 +28,72 @@ openrouter:
   max_retries: 3
   retry_delay: 5  # seconds
 
-# Inference Packs: Define model configurations for different use cases
+# Inference Packs: Define model configurations grouped by provider
 inference_packs:
-  packs:
-    reasoning:
-      model: openai/gpt-oss-20b
-      provider: openrouter
-      extract_reasoning: true
-      temperature: 0.5
-      max_tokens: 2000
-    
-    standard:
-      model: openai/gpt-oss-20b
-      provider: openrouter
-      extract_reasoning: false  # Use standard content field
-      temperature: 0.5
-      max_tokens: 2000
-    
-    web_search:
-      model: openai/gpt-4o-mini-search-preview
-      provider: openrouter
-      extract_reasoning: false
-      temperature: 0.1
-      max_tokens: 5000
-    
-    fast:
-      model: meta-llama/llama-3.1-8b-instruct:free
-      provider: openrouter
-      extract_reasoning: false
-      temperature: 0.3
-      max_tokens: 2000
-    
-    local:
-      model: gpt-oss-20b
-      provider: ollama
-      extract_reasoning: false
-      temperature: 0.7
-      max_tokens: 2000
+  # Provider-specific configurations
+  openrouter:
+    default_pack: standard  # Default pack for OpenRouter agents
+    packs:
+      reasoning:
+        model: openai/gpt-oss-20b
+        extract_reasoning: true
+        temperature: 0.5
+        max_tokens: 2000
+      
+      standard:
+        model: openai/gpt-oss-20b
+        extract_reasoning: false
+        temperature: 0.5
+        max_tokens: 2000
+      
+      web_search:
+        model: openai/gpt-4o-mini-search-preview
+        extract_reasoning: false
+        temperature: 0.1
+        max_tokens: 5000
+      
+      fast:
+        model: meta-llama/llama-3.1-8b-instruct:free
+        extract_reasoning: false
+        temperature: 0.3
+        max_tokens: 2000
+  
+  ollama:
+    default_pack: standard  # Default pack for Ollama agents
+    packs:
+      standard:
+        model: llama3.1:8b
+        extract_reasoning: false
+        temperature: 0.7
+        max_tokens: 2000
+      
+      reasoning:
+        model: llama3.1:8b
+        extract_reasoning: false
+        temperature: 0.5
+        max_tokens: 2000
+      
+      fast:
+        model: qwen2.5:3b
+        extract_reasoning: false
+        temperature: 0.3
+        max_tokens: 2000
+      
+      # Note: web_search pack not available for Ollama
+      # If an agent requests 'web_search' with Ollama, it will fall back to 'standard'
 
-# Agent Inference Assignments: Map agents to inference packs
+# Agent Inference Assignments: Map agents to inference packs (pack names only)
+# Provider is determined by command used (queenbee = ollama, queenbee-openrouter = openrouter)
+# If pack not found in provider, falls back to provider's default_pack
+# If default_pack also unavailable, agent initialization fails
 agent_inference:
   queen: standard
   divergent: reasoning
   convergent: reasoning
   critical: standard
   summarizer: standard
-  web_searcher: web_search  # Uses search-capable model
+  web_searcher: web_search  # Only works with OpenRouter
+
 
 agents:
   ttl:

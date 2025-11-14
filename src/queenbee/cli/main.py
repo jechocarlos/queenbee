@@ -52,6 +52,61 @@ def print_banner() -> None:
     console.print(Panel(banner, border_style="yellow"))
 
 
+def verify_ollama_models(config, provider_config) -> dict[str, bool]:
+    """Verify that all configured Ollama models are available.
+    
+    Args:
+        config: System configuration.
+        provider_config: Provider-specific inference pack configuration.
+        
+    Returns:
+        Dictionary mapping model names to availability status.
+    """
+    from queenbee.llm import OllamaClient
+    
+    ollama = OllamaClient(config.ollama)
+    
+    try:
+        available_models = ollama.list_models()
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Available Ollama models: {available_models}")
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Could not list Ollama models: {e}")
+        # Return empty dict - we'll assume models might be available
+        return {}
+    
+    # Check each pack's model
+    model_status = {}
+    for pack_name, pack in provider_config.packs.items():
+        model_name = pack.model
+        # Ollama models can have tags (e.g., llama3.1:8b)
+        # Check if model name matches any available model
+        is_available = any(model_name in m or m in model_name for m in available_models)
+        model_status[model_name] = is_available
+    
+    return model_status
+
+
+def verify_openrouter_models(config, provider_config) -> dict[str, bool]:
+    """Verify OpenRouter API key is configured.
+    
+    Args:
+        config: System configuration.
+        provider_config: Provider-specific inference pack configuration.
+        
+    Returns:
+        Dictionary mapping model names to availability status (all True if API key exists).
+    """
+    model_status = {}
+    api_key_valid = bool(config.openrouter.api_key and config.openrouter.api_key != "")
+    
+    for pack_name, pack in provider_config.packs.items():
+        model_status[pack.model] = api_key_valid
+    
+    return model_status
+
+
 def handle_shutdown(signum, frame) -> None:
     """Handle shutdown signals gracefully."""
     console.print("\n[yellow]Shutting down QueenBee...[/yellow]")
@@ -145,16 +200,82 @@ def main() -> int:
         console.print(f"[dim]✓ Log level: {config.logging.level}[/dim]")
         
         # Show inference pack configuration
-        if config.inference_packs and config.inference_packs.packs:
-            console.print(f"[dim]✓ Inference packs: {len(config.inference_packs.packs)} configured[/dim]")
+        openrouter_packs = len(config.inference_packs.openrouter.packs) if config.inference_packs.openrouter else 0
+        ollama_packs = len(config.inference_packs.ollama.packs) if config.inference_packs.ollama else 0
+        total_packs = openrouter_packs + ollama_packs
+        
+        # Determine active provider
+        active_provider = 'openrouter' if using_openrouter else 'ollama'
+        provider_config = config.inference_packs.openrouter if using_openrouter else config.inference_packs.ollama
+        
+        # Verify model availability
+        console.print(f"[dim]Verifying model availability...[/dim]")
+        if active_provider == 'ollama':
+            model_status = verify_ollama_models(config, provider_config)
+        else:
+            model_status = verify_openrouter_models(config, provider_config)
+        
+        if total_packs > 0:
+            console.print(f"[dim]✓ Provider: {active_provider.capitalize()} ({len(provider_config.packs)} packs available)[/dim]")
             
-            # Show all agent assignments
+            # Track if any models are unavailable
+            unavailable_agents = []
+            
+            # Show all agent assignments with availability status
             for agent_type in ['queen', 'divergent', 'convergent', 'critical', 'summarizer', 'web_searcher']:
                 pack_name = getattr(config.agent_inference, agent_type, 'standard')
-                pack = config.inference_packs.packs.get(pack_name)
+                
+                # Get the pack from the active provider
+                pack = provider_config.packs.get(pack_name)
+                
+                if not pack:
+                    # Try default pack
+                    pack_name = provider_config.default_pack
+                    pack = provider_config.packs.get(pack_name)
+                
                 if pack:
                     model_short = pack.model.split('/')[-1] if '/' in pack.model else pack.model
-                    console.print(f"[dim]  {agent_type:12} → {model_short}[/dim]")
+                    model_available = model_status.get(pack.model, False)
+                    
+                    if model_available:
+                        console.print(f"[dim]  {agent_type:12} → {model_short} [green]✓[/green][/dim]")
+                    else:
+                        console.print(f"[dim]  {agent_type:12} → {model_short} [red]✗ NOT FOUND[/red][/dim]")
+                        unavailable_agents.append((agent_type, pack.model))
+                else:
+                    console.print(f"[dim]  {agent_type:12} → [red]UNAVAILABLE (no pack)[/red][/dim]")
+                    unavailable_agents.append((agent_type, "no pack configured"))
+            
+            # If any models are unavailable, show warning and instructions
+            if unavailable_agents:
+                # Check if any critical agents are unavailable
+                critical_agents = {'queen', 'divergent', 'convergent', 'critical', 'summarizer'}
+                critical_unavailable = [
+                    (agent_type, model) 
+                    for agent_type, model in unavailable_agents 
+                    if agent_type in critical_agents
+                ]
+                
+                console.print()
+                console.print("[yellow]⚠ Warning: Some models are not available:[/yellow]")
+                for agent_type, model in unavailable_agents:
+                    console.print(f"[yellow]  • {agent_type}: {model}[/yellow]")
+                
+                if active_provider == 'ollama':
+                    console.print("\n[dim]To pull missing models:[/dim]")
+                    unique_models = set(model for _, model in unavailable_agents if model != "no pack configured")
+                    for model in unique_models:
+                        console.print(f"[dim]  docker exec -it queenbee-ollama ollama pull {model}[/dim]")
+                    console.print()
+                else:
+                    console.print("\n[dim]Check your OpenRouter API key in .env file[/dim]\n")
+                
+                # Exit if critical agents are unavailable
+                if critical_unavailable:
+                    console.print("[red]✗ Error: Critical agents cannot start without their models.[/red]")
+                    console.print("[red]  Required agents: queen, divergent, convergent, critical, summarizer[/red]")
+                    console.print("[yellow]  Please install the missing models and try again.[/yellow]")
+                    return 1
         elif using_openrouter:
             console.print(f"[dim]✓ Provider: OpenRouter[/dim]")
             console.print(f"[dim]✓ Default model: {config.openrouter.model}[/dim]")

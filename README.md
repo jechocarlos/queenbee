@@ -9,6 +9,22 @@
 
 QueenBee is a sophisticated agent orchestration platform that coordinates specialized AI agents to solve complex problems through collaborative thinking. Every query is analyzed by a team of experts using divergent exploration, convergent synthesis, and critical validation.
 
+## 📑 Table of Contents
+
+- [What Makes QueenBee Different?](#-what-makes-queenbee-different)
+- [Key Features](#-key-features)
+- [Quick Start](#-quick-start)
+- [Usage Examples](#-usage-examples)
+- [Configuration](#️-configuration)
+  - [Inference Packs](#inference-packs-advanced-model-configuration)
+  - [LLM Provider Setup](#llm-provider-setup)
+- [Architecture](#️-architecture)
+- [Development](#-development)
+- [Deployment](#-deployment)
+- [Documentation](#-documentation)
+- [Contributing](#-contributing)
+- [Roadmap](#️-roadmap)
+
 ---
 
 ## 🎯 What Makes QueenBee Different?
@@ -56,9 +72,12 @@ QueenBee is a sophisticated agent orchestration platform that coordinates specia
 
 ### Prerequisites
 
-- **Python 3.14+**
-- **Docker & Docker Compose**  
-- **Ollama** (for local mode) or **OpenRouter API key** (for cloud mode)
+- **Python 3.14+** (or 3.10+)
+- **Docker & Docker Compose** (v2.0+)
+- **PostgreSQL 14+** (via Docker or external)
+- **LLM Provider** (choose one):
+  - **Ollama** for local/private deployment
+  - **OpenRouter API key** for cloud models (Claude, GPT-4, etc.)
 
 ### Installation
 
@@ -96,6 +115,9 @@ pip install -e .
 
 # Run database migrations
 python scripts/migrate.py
+
+# Verify installation
+queenbee --version
 ```
 
 4. **Launch**
@@ -105,6 +127,24 @@ queenbee
 
 # With OpenRouter (cloud)
 queenbee-openrouter
+```
+
+### CLI Commands
+
+Once running, use these commands:
+
+```bash
+# Start a new conversation
+You: <your question>
+
+# View conversation history
+history
+
+# Clear current session
+clear
+
+# Exit application
+exit / quit
 ```
 
 ---
@@ -299,27 +339,61 @@ consensus:
 
 ## 🏗️ Architecture
 
-### System Flow
+### Discussion Flow
+
 ```
-User Input
-    ↓
-Queen Agent (Orchestrator)
-    ↓
-Task Queue → Specialist Discussion (Parallel Workers)
-    ↓
-┌───────────┼───────────┬────────────┐
-│           │           │            │
-🌟 Divergent  🔗 Convergent  🔍 Critical  📋 Summarizer
-(Explore)    (Synthesize)  (Validate)   (Rolling Updates)
-│           │           │            │
-└───────────┴───────────┴────────────┘
-    ↓
-Final Synthesis
-    ↓
-Queen's Response
-    ↓
-User
+                        User Query
+                            ↓
+                    ┌───────────────┐
+                    │ Queen Agent   │ (Delegates to specialists)
+                    └───────────────┘
+                            ↓
+                    [Task Queue] → Background Workers
+                            ↓
+    ╔═══════════════════════════════════════════════════════════╗
+    ║         PARALLEL MULTI-ROUND DISCUSSION                   ║
+    ║  (20 rounds max, async workers, streaming responses)      ║
+    ╚═══════════════════════════════════════════════════════════╝
+                            ↓
+    ┌──────────────┬──────────────┬──────────────┬──────────────┐
+    │              │              │              │              │
+    │  🌟 Divergent │ 🔗 Convergent │ 🔍 Critical  │ 📋 Summarizer│
+    │  (Explore)   │ (Synthesize) │  (Validate)  │  (Updates)   │
+    │              │              │              │              │
+    │ Round 1 ─────┼──────────────┼──────────────┼──────────────┤
+    │ Response 1   │ Response 1   │ Response 1   │ Summary 1    │
+    │              │              │              │ (every 10s)  │
+    │ Round 2 ─────┼──────────────┼──────────────┼──────────────┤
+    │ Response 2   │ Response 2   │ Response 2   │ Summary 2    │
+    │ (reads all   │ (reads all   │ (reads all   │ (synthesizes │
+    │  previous)   │  previous)   │  previous)   │  progress)   │
+    │              │              │              │              │
+    │ Round N ─────┼──────────────┼──────────────┼──────────────┤
+    │ Response N   │ Response N   │ Response N   │ Summary N    │
+    │              │              │              │              │
+    └──────────────┴──────────────┴──────────────┴──────────────┘
+                            ↓
+              All agents reach consensus/timeout
+                            ↓
+                ┌────────────────────────┐
+                │  📝 FINAL SUMMARY      │
+                │  (Comprehensive        │
+                │   synthesis by         │
+                │   Summarizer)          │
+                └────────────────────────┘
+                            ↓
+                    Displayed to User
+                            ↓
+              Persisted to PostgreSQL
 ```
+
+**Key Characteristics:**
+- ⚡ **Parallel Processing**: All specialists run simultaneously in background workers
+- 🔄 **Multi-Round Discussion**: Up to 20 rounds, each agent builds on previous responses
+- 📊 **Live Rolling Updates**: Summarizer provides progress updates every 10 seconds
+- 🎯 **Context-Aware**: Each round, agents read entire discussion history
+- 💾 **Persistent**: All contributions saved to PostgreSQL in real-time
+- 🛑 **Smart Termination**: Discussion ends when consensus reached or timeout
 
 ### Key Components
 
@@ -451,6 +525,7 @@ DB_SSL_MODE=prefer               # require for remote DB
 ## 📚 Documentation
 
 - **[Architecture](docs/architecture_update.md)**: System design and components
+- **[Inference Packs](docs/inference-packs.md)**: Advanced model configuration guide
 - **[OpenRouter Integration](docs/openrouter.md)**: Cloud LLM setup and rate limiting
 - **[Specialist Agents](docs/specialist-agents.md)**: Agent roles and behaviors
 - **[Testing](docs/testing.md)**: Test suite and coverage
@@ -486,25 +561,19 @@ We welcome contributions! Here's how to get started:
 - [x] Multi-agent collaboration system
 - [x] Ollama (local) LLM integration
 - [x] OpenRouter (cloud) LLM integration
+- [x] **Inference packs** - Per-agent model configuration
+- [x] Reasoning model support (dual-field extraction)
 - [x] Real-time streaming responses
 - [x] Live rolling summaries
 - [x] PostgreSQL persistence
-- [x] Rate limit management
-- [x] Comprehensive test suite
-- [x] Docker deployment
+- [x] Smart rate limit management
+- [x] Comprehensive test suite (223 tests, 70% coverage)
+- [x] Docker deployment configs
 
 ### In Progress 🚧
 - [ ] Phase 2: Full consensus protocol
 - [ ] Enhanced agent learning
 - [ ] Performance optimizations
-
-### Planned 🎯
-- [ ] Web UI interface
-- [ ] Multi-user support  
-- [ ] Additional LLM providers
-- [ ] Agent personality customization
-- [ ] Knowledge graph integration
-- [ ] Real-time collaboration features
 
 ---
 

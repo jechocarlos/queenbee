@@ -9,7 +9,7 @@ database:
   name: ${DB_NAME:queenbee}
   user: ${DB_USER:queenbee}
   password: ${DB_PASSWORD}
-  ssl_mode: ${DB_SSL_MODE:prefer}
+  ssl_mode: ${DB_SSL_MODE:disable}  # Use "require" for remote databases
 
 ollama:
   host: ${OLLAMA_HOST:http://localhost:11434}

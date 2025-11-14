@@ -33,8 +33,10 @@ class DatabaseManager:
         """
         if self._connection is None or self._connection.closed:
             logger.info(f"Connecting to database: {self.config.host}:{self.config.port}/{self.config.name}")
+            # Add connection timeout to prevent long delays
+            conn_string = f"{self.config.connection_string}&connect_timeout=3"
             self._connection = psycopg.connect(
-                self.config.connection_string,
+                conn_string,
                 row_factory=dict_row,  # type: ignore[arg-type]
                 autocommit=False,
             )
@@ -59,8 +61,20 @@ class DatabaseManager:
             try:
                 yield cursor
                 conn.commit()
+            except psycopg.OperationalError as e:
+                # Connection closed or lost - log but don't crash
+                logger.warning(f"Database connection error (connection may be closed): {e}")
+                try:
+                    conn.rollback()
+                except psycopg.OperationalError:
+                    # Can't rollback if connection is closed
+                    pass
             except Exception as e:
-                conn.rollback()
+                try:
+                    conn.rollback()
+                except psycopg.OperationalError:
+                    # Can't rollback if connection is closed
+                    logger.warning("Could not rollback transaction (connection closed)")
                 logger.error(f"Database error: {e}")
                 raise
 

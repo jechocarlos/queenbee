@@ -168,12 +168,16 @@ class AgentRepository:
             agent_id: Agent ID.
             status: New status.
         """
-        with self.db.get_cursor() as cursor:
-            cursor.execute(
-                "UPDATE agents SET status = %s WHERE id = %s",
-                (status.value, agent_id),
-            )
-            logger.debug(f"Updated agent {agent_id} status to {status.value}")
+        try:
+            with self.db.get_cursor() as cursor:
+                cursor.execute(
+                    "UPDATE agents SET status = %s WHERE id = %s",
+                    (status.value, agent_id),
+                )
+                logger.debug(f"Updated agent {agent_id} status to {status.value}")
+        except Exception as e:
+            # Log but don't crash if we can't update status (e.g., connection closed during shutdown)
+            logger.warning(f"Could not update agent {agent_id} status to {status.value}: {e}")
 
     def update_agent_activity(self, agent_id: UUID) -> None:
         """Update agent last activity timestamp.

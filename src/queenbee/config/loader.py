@@ -18,7 +18,7 @@ class DatabaseConfig(BaseSettings):
     name: str = Field(default="queenbee")
     user: str = Field(default="queenbee")
     password: str
-    ssl_mode: str = Field(default="prefer")
+    ssl_mode: str = Field(default="disable")  # Use "require" for remote databases
 
     @property
     def connection_string(self) -> str:

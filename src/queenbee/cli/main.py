@@ -228,39 +228,40 @@ def main() -> int:
 
             # Start session
             progress.update(task, description="[cyan]Starting session...")
-            with SessionManager(db) as session_mgr:
-                session_id = session_mgr.current_session_id
-                if session_id is None:
-                    progress.stop()
-                    console.print("[red]✗ Failed to create session[/red]")
-                    return 1
-                
-                # Initialize worker manager and start worker for this session
-                progress.update(task, description="[cyan]Starting specialist workers...")
-                worker_mgr = WorkerManager(config)
-                worker_mgr.start_worker(session_id)
-                
-                # Initialize Queen agent and chat repository
-                progress.update(task, description="[cyan]Initializing Queen agent...")
-                queen = QueenAgent(
-                    session_id=session_id,
-                    config=config,
-                    db=db,
-                )
-                chat_repo = ChatRepository(db)
+            session_mgr = SessionManager(db)
+            session_mgr.__enter__()
+            session_id = session_mgr.current_session_id
+            if session_id is None:
+                progress.stop()
+                console.print("[red]✗ Failed to create session[/red]")
+                return 1
+            
+            # Initialize worker manager and start worker for this session
+            progress.update(task, description="[cyan]Starting specialist workers...")
+            worker_mgr = WorkerManager(config)
+            worker_mgr.start_worker(session_id)
+            
+            # Initialize Queen agent and chat repository
+            progress.update(task, description="[cyan]Initializing Queen agent...")
+            queen = QueenAgent(
+                session_id=session_id,
+                config=config,
+                db=db,
+            )
+            chat_repo = ChatRepository(db)
         
-            # Progress complete - show ready state
-            console.print()  # Add spacing
+        # Progress complete - show ready state
+        console.print()  # Add spacing
 
-            # Print banner
-            print_banner()
-            console.print(f"[green]✓ Session started: {session_id}[/green]")
-            console.print(f"[green]✓ Queen agent ready[/green]")
-            console.print(f"[dim]💡 Tip: Type 'history' to see recent messages, 'specialists on/off' to toggle[/dim]\n")
+        # Print banner
+        print_banner()
+        console.print(f"[green]✓ Session started: {session_id}[/green]")
+        console.print(f"[green]✓ Queen agent ready[/green]")
+        console.print(f"[dim]💡 Tip: Type 'history' to see recent messages, 'specialists on/off' to toggle[/dim]\n")
 
-            # Main interaction loop
-            try:
-                while True:
+        # Main interaction loop
+        try:
+            while True:
                     try:
                         # Get user input
                         user_input = Prompt.ask("[bold cyan]You[/bold cyan]")
@@ -319,10 +320,12 @@ def main() -> int:
                         logger.error(f"Error processing request: {e}", exc_info=True)
                         console.print(f"[red]Error: {e}[/red]")
                         continue
-            finally:
-                # Stop worker on exit
-                console.print("[dim]Stopping specialist workers...[/dim]")
-                worker_mgr.stop_worker(session_id)
+        finally:
+            # Stop worker on exit
+            console.print("[dim]Stopping specialist workers...[/dim]")
+            worker_mgr.stop_worker(session_id)
+            # Close session manager
+            session_mgr.__exit__(None, None, None)
 
         # Cleanup
         db.disconnect()

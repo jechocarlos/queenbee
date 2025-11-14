@@ -33,8 +33,10 @@ class TestOllamaClient:
         
         assert client.config == ollama_config
         assert client.base_url == "http://localhost:11434"
-        assert client.model == "llama2"
+        assert client.model == "llama2"  # Now this is a string for compatibility
+        assert client.model_id == "llama2"
         assert client.timeout == 30
+        assert client._agno_model is not None  # Check Agno model exists
 
     def test_init_strips_trailing_slash(self):
         """Test that trailing slash is stripped from base URL."""
@@ -43,119 +45,112 @@ class TestOllamaClient:
         
         assert client.base_url == "http://localhost:11434"
 
-    @patch('queenbee.llm.httpx.Client')
-    def test_generate_sync_without_system(self, mock_client_class, client):
+    @patch('queenbee.llm.Agent')
+    def test_generate_sync_without_system(self, mock_agent_class, client):
         """Test synchronous generation without system prompt."""
+        # Mock Agno Agent response
         mock_response = Mock()
-        mock_response.json.return_value = {"response": "Generated text"}
+        mock_response.content = "Generated text"
         
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_client.post.return_value = mock_response
-        mock_client_class.return_value = mock_client
+        mock_agent = Mock()
+        mock_agent.run.return_value = mock_response
+        mock_agent_class.return_value = mock_agent
         
         result = client.generate("Test prompt", stream=False)
         
         assert result == "Generated text"
-        mock_client.post.assert_called_once()
-        call_args = mock_client.post.call_args
-        assert call_args[0][0] == "http://localhost:11434/api/generate"
-        assert call_args[1]["json"]["prompt"] == "Test prompt"
-        assert call_args[1]["json"]["stream"] is False
-        assert "system" not in call_args[1]["json"]
+        mock_agent_class.assert_called_once()  # Agent created
+        mock_agent.run.assert_called_once_with("Test prompt", stream=False)
 
-    @patch('queenbee.llm.httpx.Client')
-    def test_generate_sync_with_system(self, mock_client_class, client):
+    @patch('queenbee.llm.Agent')
+    def test_generate_sync_with_system(self, mock_agent_class, client):
         """Test synchronous generation with system prompt."""
+        # Mock Agno Agent response
         mock_response = Mock()
-        mock_response.json.return_value = {"response": "Generated text"}
+        mock_response.content = "Generated text"
         
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_client.post.return_value = mock_response
-        mock_client_class.return_value = mock_client
+        mock_agent = Mock()
+        mock_agent.run.return_value = mock_response
+        mock_agent_class.return_value = mock_agent
         
         result = client.generate("Test prompt", system="System prompt", stream=False)
         
         assert result == "Generated text"
-        call_args = mock_client.post.call_args
-        assert call_args[1]["json"]["system"] == "System prompt"
+        mock_agent.run.assert_called_once_with("Test prompt", stream=False)
 
-    @patch('queenbee.llm.httpx.Client')
-    def test_generate_sync_with_temperature(self, mock_client_class, client):
+    @patch('queenbee.llm.Agent')
+    def test_generate_sync_with_temperature(self, mock_agent_class, client):
         """Test that temperature is passed correctly."""
+        # Mock Agno Agent response
         mock_response = Mock()
-        mock_response.json.return_value = {"response": "Generated text"}
+        mock_response.content = "Generated text"
         
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_client.post.return_value = mock_response
-        mock_client_class.return_value = mock_client
+        mock_agent = Mock()
+        mock_agent.run.return_value = mock_response
+        mock_agent_class.return_value = mock_agent
         
         result = client.generate("Test prompt", temperature=0.9, stream=False)
         
-        call_args = mock_client.post.call_args
-        assert call_args[1]["json"]["options"]["temperature"] == 0.9
+        assert result == "Generated text"
+        # Verify Agent was called with correct model config
+        mock_agent_class.assert_called_once()
+        call_args = mock_agent_class.call_args
+        model_arg = call_args[1]['model']
+        # Check that options were set (temperature should be in model.options)
+        assert model_arg.options['temperature'] == 0.9
 
-    @patch('queenbee.llm.httpx.Client')
-    def test_generate_stream(self, mock_client_class, client):
+    @patch('queenbee.llm.Agent')
+    def test_generate_stream(self, mock_agent_class, client):
         """Test streaming generation."""
-        # Mock streaming response
-        mock_response = MagicMock()
-        mock_response.iter_lines.return_value = [
-            '{"response": "Hello"}',
-            '{"response": " world"}',
-            '{"response": "!"}',
-        ]
+        # Mock Agno streaming response
+        mock_event1 = Mock()
+        mock_event1.content = "Hello"
+        mock_event2 = Mock()
+        mock_event2.content = " world"
+        mock_event3 = Mock()
+        mock_event3.content = "!"
         
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_stream_context = MagicMock()
-        mock_stream_context.__enter__.return_value = mock_response
-        mock_client.stream.return_value = mock_stream_context
-        mock_client_class.return_value = mock_client
+        mock_agent = Mock()
+        mock_agent.run.return_value = iter([mock_event1, mock_event2, mock_event3])
+        mock_agent_class.return_value = mock_agent
         
         result = client.generate("Test prompt", stream=True)
         chunks = list(result)
         
         assert chunks == ["Hello", " world", "!"]
-        mock_client.stream.assert_called_once()
+        mock_agent.run.assert_called_once_with("Test prompt", stream=True)
 
-    @patch('queenbee.llm.httpx.Client')
-    def test_generate_stream_handles_invalid_json(self, mock_client_class, client):
+    @patch('queenbee.llm.Agent')
+    def test_generate_stream_handles_invalid_json(self, mock_agent_class, client):
         """Test that streaming handles invalid JSON gracefully."""
-        mock_response = MagicMock()
-        mock_response.iter_lines.return_value = [
-            '{"response": "Valid"}',
-            'invalid json',
-            '{"response": "Also valid"}',
-        ]
+        # Mock Agno streaming with some None/empty content (simulating errors)
+        mock_event1 = Mock()
+        mock_event1.content = "Valid"
+        mock_event2 = Mock()
+        mock_event2.content = None  # Simulates skipped content
+        mock_event3 = Mock()
+        mock_event3.content = "Also valid"
         
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_stream_context = MagicMock()
-        mock_stream_context.__enter__.return_value = mock_response
-        mock_client.stream.return_value = mock_stream_context
-        mock_client_class.return_value = mock_client
+        mock_agent = Mock()
+        mock_agent.run.return_value = iter([mock_event1, mock_event2, mock_event3])
+        mock_agent_class.return_value = mock_agent
         
         result = client.generate("Test prompt", stream=True)
         chunks = list(result)
         
-        # Should skip invalid JSON
+        # Should skip None/empty content
         assert chunks == ["Valid", "Also valid"]
 
-    @patch('queenbee.llm.httpx.Client')
-    def test_chat_sync(self, mock_client_class, client):
+    @patch('queenbee.llm.Agent')
+    def test_chat_sync(self, mock_agent_class, client):
         """Test synchronous chat."""
+        # Mock Agno Agent response
         mock_response = Mock()
-        mock_response.json.return_value = {
-            "message": {"content": "Chat response"}
-        }
+        mock_response.content = "Chat response"
         
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_client.post.return_value = mock_response
-        mock_client_class.return_value = mock_client
+        mock_agent = Mock()
+        mock_agent.run.return_value = mock_response
+        mock_agent_class.return_value = mock_agent
         
         messages = [
             {"role": "user", "content": "Hello"},
@@ -164,31 +159,28 @@ class TestOllamaClient:
         result = client.chat(messages, stream=False)
         
         assert result == "Chat response"
-        call_args = mock_client.post.call_args
-        assert call_args[0][0] == "http://localhost:11434/api/chat"
-        assert call_args[1]["json"]["messages"] == messages
+        # Agent should be called with last message content
+        mock_agent.run.assert_called_once_with("Hi there!", stream=False)
 
-    @patch('queenbee.llm.httpx.Client')
-    def test_chat_stream(self, mock_client_class, client):
+    @patch('queenbee.llm.Agent')
+    def test_chat_stream(self, mock_agent_class, client):
         """Test streaming chat."""
-        mock_response = MagicMock()
-        mock_response.iter_lines.return_value = [
-            '{"message": {"content": "Hello"}}',
-            '{"message": {"content": " world"}}',
-        ]
+        # Mock Agno streaming response
+        mock_event1 = Mock()
+        mock_event1.content = "Hello"
+        mock_event2 = Mock()
+        mock_event2.content = " world"
         
-        mock_client = MagicMock()
-        mock_client.__enter__.return_value = mock_client
-        mock_stream_context = MagicMock()
-        mock_stream_context.__enter__.return_value = mock_response
-        mock_client.stream.return_value = mock_stream_context
-        mock_client_class.return_value = mock_client
+        mock_agent = Mock()
+        mock_agent.run.return_value = iter([mock_event1, mock_event2])
+        mock_agent_class.return_value = mock_agent
         
         messages = [{"role": "user", "content": "Test"}]
         result = client.chat(messages, stream=True)
         chunks = list(result)
         
         assert chunks == ["Hello", " world"]
+        mock_agent.run.assert_called_once_with("Test", stream=True)
 
     @patch('queenbee.llm.httpx.Client')
     def test_list_models(self, mock_client_class, client):

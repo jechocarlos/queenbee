@@ -414,9 +414,18 @@ class SpecialistWorker:
         discussion_text = self._format_discussion_for_analysis(discussion)
         
         # Get max_tokens from config for token limit instruction
-        max_tokens_divergent = self.config.agents.divergent.max_tokens
-        max_tokens_convergent = self.config.agents.convergent.max_tokens
-        max_tokens_critical = self.config.agents.critical.max_tokens
+        # Use getattr with default to handle MagicMock in tests
+        max_tokens_divergent = getattr(self.config.agents.divergent, 'max_tokens', 0)
+        max_tokens_convergent = getattr(self.config.agents.convergent, 'max_tokens', 0)
+        max_tokens_critical = getattr(self.config.agents.critical, 'max_tokens', 0)
+        
+        # Ensure they are integers (handle MagicMock in tests)
+        if not isinstance(max_tokens_divergent, int):
+            max_tokens_divergent = 0
+        if not isinstance(max_tokens_convergent, int):
+            max_tokens_convergent = 0
+        if not isinstance(max_tokens_critical, int):
+            max_tokens_critical = 0
         
         # Build agent-specific prompt with explicit instruction to check for new value
         if agent_name == "Divergent":

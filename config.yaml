@@ -91,6 +91,9 @@ agent_inference:
   divergent: reasoning
   convergent: reasoning
   critical: standard
+  pragmatist: reasoning
+  user_proxy: standard
+  quantifier: reasoning
   summarizer: standard
   web_searcher: web_search  # Only works with OpenRouter
 
@@ -118,6 +121,21 @@ agents:
   
   critical:
     system_prompt_file: ./prompts/critical.md
+    max_iterations: 25
+    max_tokens: 2000  # Maximum tokens per contribution
+  
+  pragmatist:
+    system_prompt_file: ./prompts/pragmatist.md
+    max_iterations: 25
+    max_tokens: 2000  # Maximum tokens per contribution
+  
+  user_proxy:
+    system_prompt_file: ./prompts/user_proxy.md
+    max_iterations: 25
+    max_tokens: 2000  # Maximum tokens per contribution
+  
+  quantifier:
+    system_prompt_file: ./prompts/quantifier.md
     max_iterations: 25
     max_tokens: 2000  # Maximum tokens per contribution
   

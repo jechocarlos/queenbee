@@ -701,7 +701,7 @@ class SpecialistWorker:
         # Early discussion (< 6 contributions): Be more selective
         if len(discussion) < 6:
             # Only contribute if relevant to current discussion direction
-            return self._is_contribution_needed(agent_name, discussion)
+            return self._is_contribution_needed(agent_name, user_input, discussion)
         
         # Mid discussion (6-12 contributions): Very selective
         if len(discussion) < 12:
@@ -759,40 +759,36 @@ class SpecialistWorker:
     def _is_contribution_needed(
         self,
         agent_name: str,
+        user_input: str,
         discussion: list[dict]
     ) -> bool:
         """Determine if agent's contribution would add value to current discussion.
         
+        All agents are core - they have distinct expertise that enriches discussion.
+        Only exclude if expertise is irrelevant to the question.
+        
         Args:
             agent_name: Name of the agent.
+            user_input: Original user question.
             discussion: Current discussion history.
             
         Returns:
             True if contribution is likely needed.
         """
         if not discussion:
+            # First round - let all agents that haven't contributed yet try
             return True
         
-        # Check if agent's perspective is missing
+        # Check if agent has already contributed
         agent_names_contributed = {d["agent"] for d in discussion}
+        has_not_contributed = agent_name not in agent_names_contributed
         
-        # Core agents (Divergent, Convergent, Critical) should contribute early
-        core_agents = {"Divergent", "Convergent", "Critical"}
-        if agent_name in core_agents:
-            # If not all core agents have contributed yet, let them contribute
-            if not core_agents.issubset(agent_names_contributed):
-                return True
+        # All agents are core - check if their expertise is relevant to the question
+        # If not relevant, don't ask them to contribute
+        is_relevant = self._is_agent_expertise_relevant(agent_name, user_input, discussion)
         
-        # Support agents (Pragmatist, UserProxy, Quantifier) contribute when needed
-        support_agents = {"Pragmatist", "UserProxy", "Quantifier"}
-        if agent_name in support_agents:
-            # Wait until core discussion has started (at least 2 contributions)
-            if len(discussion) < 2:
-                return False
-            # Only contribute if can add specific value
-            return agent_name not in agent_names_contributed
-        
-        return True
+        # Contribute if: expertise is relevant AND haven't contributed yet
+        return is_relevant and has_not_contributed
     
     def _get_async_agent_response(
         self,

@@ -53,10 +53,10 @@ inference_packs:
         max_tokens: 5000
       
       fast:
-        model: meta-llama/llama-3.1-8b-instruct:free
+        model: openai/gpt-4o-mini
         extract_reasoning: false
-        temperature: 0.3
-        max_tokens: 2000
+        temperature: 0.1
+        max_tokens: 500
   
   ollama:
     default_pack: standard  # Default pack for Ollama agents
@@ -88,6 +88,7 @@ inference_packs:
 # If default_pack also unavailable, agent initialization fails
 agent_inference:
   queen: standard
+  classifier: fast
   divergent: reasoning
   convergent: reasoning
   critical: standard
@@ -108,6 +109,10 @@ agents:
   queen:
     system_prompt_file: ./prompts/queen.md
     complexity_threshold: auto
+  
+  classifier:
+    system_prompt_file: ./prompts/classifier.md
+    max_tokens: 10  # Very short response needed (just SIMPLE or COMPLEX)
   
   divergent:
     system_prompt_file: ./prompts/divergent.md

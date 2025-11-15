@@ -107,6 +107,8 @@ class BaseAgent:
         """
         if self.agent_type == AgentType.QUEEN:
             return self.config.agent_inference.queen
+        elif self.agent_type == AgentType.CLASSIFIER:
+            return self.config.agent_inference.classifier
         elif self.agent_type == AgentType.DIVERGENT:
             return self.config.agent_inference.divergent
         elif self.agent_type == AgentType.CONVERGENT:
@@ -135,6 +137,8 @@ class BaseAgent:
         # Get prompt file path based on agent type
         if self.agent_type == AgentType.QUEEN:
             prompt_file = self.config.agents.queen.system_prompt_file
+        elif self.agent_type == AgentType.CLASSIFIER:
+            prompt_file = self.config.agents.classifier.system_prompt_file
         elif self.agent_type == AgentType.DIVERGENT:
             prompt_file = self.config.agents.divergent.system_prompt_file
         elif self.agent_type == AgentType.CONVERGENT:
@@ -173,6 +177,10 @@ class BaseAgent:
         if self.agent_type == AgentType.QUEEN:
             return {
                 "complexity_threshold": self.config.agents.queen.complexity_threshold,
+            }
+        elif self.agent_type == AgentType.CLASSIFIER:
+            return {
+                "max_tokens": self.config.agents.classifier.max_tokens,
             }
         elif self.agent_type in [
             AgentType.DIVERGENT, 

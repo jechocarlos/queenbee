@@ -16,6 +16,7 @@ class AgentType(str, Enum):
     """Agent type enumeration."""
 
     QUEEN = "queen"
+    CLASSIFIER = "classifier"
     DIVERGENT = "divergent"
     CONVERGENT = "convergent"
     CRITICAL = "critical"

@@ -8,6 +8,7 @@ from typing import Iterator, Union
 from uuid import UUID, uuid4
 
 from queenbee.agents.base import BaseAgent
+from queenbee.agents.classifier import ClassifierAgent
 from queenbee.config.loader import Config
 from queenbee.db.connection import DatabaseManager
 from queenbee.db.models import (AgentType, ChatRepository, MessageRole,
@@ -31,6 +32,9 @@ class QueenAgent(BaseAgent):
         self.chat_repo = ChatRepository(db)
         self.task_repo = TaskRepository(db)
         self.enable_specialists = True  # Toggle to enable/disable specialist spawning
+        
+        # Initialize classifier agent
+        self.classifier = ClassifierAgent(session_id, config, db)
 
     def process_request(self, user_input: str, stream: bool = False) -> Union[str, Iterator[str]]:
         """Process user request and return response.
@@ -49,12 +53,13 @@ class QueenAgent(BaseAgent):
             content=user_input,
         )
 
-        # Always delegate to specialists for collaborative discussion
-        # The Queen's role is purely orchestration - specialists handle all analysis
-        if self.enable_specialists:
+        # Use Classifier agent to determine if specialists are needed
+        is_complex = self.classifier.classify(user_input)
+        
+        if is_complex and self.enable_specialists:
             response = self._handle_complex_request(user_input, stream=stream)
         else:
-            # Fallback to direct response only if specialists are explicitly disabled
+            # Handle simple requests directly or if specialists are disabled
             response = self._handle_simple_request(user_input, stream=stream)
 
         # If streaming, we can't log yet - caller will handle logging
@@ -68,47 +73,6 @@ class QueenAgent(BaseAgent):
             )
 
         return response
-
-    def _analyze_complexity(self, user_input: str) -> bool:
-        """Analyze if request is complex and requires specialists.
-
-        Uses the Queen's LLM to intelligently decide if the question needs
-        specialist discussion or can be answered directly.
-
-        Args:
-            user_input: User's input text.
-
-        Returns:
-            True if complex (needs specialists), False if simple (answer directly).
-        """
-        analysis_prompt = f"""Analyze if this user question requires a multi-agent discussion or can be answered directly.
-
-User Question: {user_input}
-
-Decision Criteria:
-- SIMPLE (answer directly): Factual lookups, basic math, definitions, single straightforward answers
-- COMPLEX (needs specialists): Requires analysis, comparison, design decisions, trade-offs, multiple perspectives, implementation guidance
-
-Respond with ONLY one word: SIMPLE or COMPLEX"""
-
-        try:
-            response = self.generate_response(
-                prompt=analysis_prompt,
-                temperature=0.0,
-                stream=False,
-                max_tokens=10
-            )
-            
-            decision = str(response).strip().upper()
-            is_complex = decision == "COMPLEX"
-            
-            logger.debug(f"Complexity analysis: decision={decision}, is_complex={is_complex}")
-            return is_complex
-            
-        except Exception as e:
-            logger.warning(f"Error in complexity analysis, defaulting to complex: {e}")
-            # On error, default to complex to ensure specialists handle it
-            return True
 
     def _handle_simple_request(self, user_input: str, stream: bool = False) -> Union[str, Iterator[str]]:
         """Handle simple request directly.

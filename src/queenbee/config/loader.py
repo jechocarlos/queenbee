@@ -79,6 +79,7 @@ class AgentInferenceConfig(BaseSettings):
     """Agent-specific inference pack assignments."""
 
     queen: str = Field(default="standard", description="Inference pack name for queen agent")
+    classifier: str = Field(default="fast", description="Inference pack name for classifier agent")
     divergent: str = Field(default="standard", description="Inference pack name for divergent agent")
     convergent: str = Field(default="standard", description="Inference pack name for convergent agent")
     critical: str = Field(default="standard", description="Inference pack name for critical agent")
@@ -111,6 +112,7 @@ class AgentsConfig(BaseSettings):
     ttl: AgentTTLConfig
     max_concurrent_specialists: int = Field(default=10)
     queen: AgentPromptConfig
+    classifier: AgentPromptConfig
     divergent: AgentPromptConfig
     convergent: AgentPromptConfig
     critical: AgentPromptConfig

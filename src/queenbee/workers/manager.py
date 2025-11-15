@@ -104,6 +104,10 @@ class SpecialistWorker:
         web_search_events = []  # Track web search requests: {"agent": "Divergent", "query": "..."}
         web_search_queue = []  # Queue for pending web search requests: [{"agent": "...", "query": "..."}]
         
+        # Track agent passes for early termination
+        agent_pass_count = {}  # {agent: consecutive_pass_count}
+        last_contribution_round = {}  # {agent: contribution_number_of_last_contribution}
+        
         # Statistics tracking
         start_time = time.time()
         stats = {
@@ -446,11 +450,30 @@ class SpecialistWorker:
                                 
                                 contribution_count += 1
                                 logger.info(f"{agent_name} contributed (#{contribution_count})")
+                                
+                                # Reset pass count when agent contributes
+                                with discussion_lock:
+                                    agent_pass_count[agent_name] = 0
+                                    last_contribution_round[agent_name] = len(discussion)
                             else:
                                 # Track explicit pass
                                 with discussion_lock:
                                     stats["agent_passes"][agent_name] = stats["agent_passes"].get(agent_name, 0) + 1
-                                logger.info(f"{agent_name} passed")
+                                    agent_pass_count[agent_name] = agent_pass_count.get(agent_name, 0) + 1
+                                    
+                                    logger.info(f"{agent_name} passed (pass count: {agent_pass_count[agent_name]})")
+                                    
+                                    # Check if ALL agents have passed consecutively
+                                    all_agents_in_discussion = [a for a in agent_status.keys() if a != "WebSearcher"]
+                                    all_passed = all(
+                                        agent_pass_count.get(agent, 0) >= 1 
+                                        for agent in all_agents_in_discussion
+                                    )
+                                    
+                                    if all_passed and len(discussion) >= 2:  # At least some discussion happened
+                                        logger.info(f"All {len(all_agents_in_discussion)} agents have passed. Ending discussion.")
+                                        stop_event.set()
+                                        break
                         
                         # Mark as idle after decision/contribution and update UI
                         with discussion_lock:

@@ -17,11 +17,13 @@
 - Assumptions others haven't challenged
 - Options the team hasn't considered
 
-**Stay SILENT (respond with [PASS]) if:**
+**Respond with exactly [PASS] if:**
 - Multiple options already exist and are well-explored
 - Your ideas would repeat what's already been said
 - The discussion has sufficient diverse perspectives
 - You don't have a genuinely new angle to add
+
+**IMPORTANT:** When ALL agents respond with [PASS], the discussion automatically ends and the answer is generated. So only pass when you truly have nothing new to add.
 
 ## Communication Style
 

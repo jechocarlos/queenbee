@@ -239,37 +239,68 @@ development velocity. Start simple, extract as needed.
 QueenBee supports **inference packs** - named model configurations that you can assign to specific agents:
 
 ```yaml
-# Define inference packs for different use cases
+# config.yaml - Define inference packs for different use cases
 inference_packs:
-  packs:
-    reasoning:
-      model: openai/gpt-oss-20b
-      provider: openrouter
-      extract_reasoning: true
-      temperature: 0.7
-      max_tokens: 500
-    
-    web_search:
-      model: openai/gpt-4o-mini-search-preview
-      provider: openrouter
-      extract_reasoning: false
-      temperature: 0.7
-      max_tokens: 800
-    
-    standard:
-      model: openai/gpt-oss-20b
-      provider: openrouter
-      extract_reasoning: false
-      temperature: 0.7
-      max_tokens: 500
+  openrouter:
+    default_pack: standard
+    packs:
+      reasoning:
+        model: openai/gpt-oss-20b
+        extract_reasoning: true
+        temperature: 0.3
+        max_tokens: 3000
+      
+      standard:
+        model: qwen/qwen3-vl-8b-instruct
+        extract_reasoning: false
+        temperature: 0.0
+        max_tokens: 2000
+      
+      web_search:
+        model: openai/gpt-4o-mini-search-preview
+        extract_reasoning: false
+        temperature: 0.1
+        max_tokens: 5000
+      
+      fast:
+        model: google/gemini-2.5-flash-lite
+        extract_reasoning: false
+        temperature: 0.1
+        max_tokens: 500
+  
+  ollama:
+    default_pack: standard
+    packs:
+      standard:
+        model: llama3.1:8b
+        extract_reasoning: false
+        temperature: 0.7
+        max_tokens: 2000
+      
+      reasoning:
+        model: llama3.1:8b
+        extract_reasoning: false
+        temperature: 0.5
+        max_tokens: 2000
+      
+      fast:
+        model: qwen2.5:3b
+        extract_reasoning: false
+        temperature: 0.3
+        max_tokens: 2000
 
-# Assign packs to agents
+# Agent inference pack assignments
 agent_inference:
   queen: standard
-  divergent: web_search     # Uses web search model
-  convergent: reasoning     # Uses reasoning model
+  classifier: fast
+  divergent: reasoning
+  convergent: reasoning
   critical: standard
+  pragmatist: reasoning
+  user_proxy: standard
+  quantifier: reasoning
   summarizer: standard
+  web_searcher: web_search
 ```
 
 **Benefits:**
@@ -277,6 +308,8 @@ agent_inference:
 - 🔍 Web search for exploration, reasoning for analysis
 - 💰 Mix free and premium models to optimize cost
 - 🏠 Combine local (Ollama) and cloud (OpenRouter) models
+
+**Important**: The `max_tokens` in inference pack definitions are model defaults. The actual token limits used by agents are configured in the `agents` section of your `config.yaml` and are injected into their system prompts for more reliable length control.
 
 See [Inference Packs Guide](docs/inference-packs.md) for detailed configuration options.
 
@@ -331,23 +364,66 @@ agents:
   
   max_concurrent_specialists: 10
   
+  # Queen agent - handles both simple and complex queries
+  queen:
+    system_prompt_file: ./prompts/queen.md
+    complexity_threshold: auto
+    simple_max_tokens: 100      # Short, direct answers
+    complex_max_tokens: 8000    # Full analysis with specialist input
+  
+  # Query classifier - determines simple vs complex
+  classifier:
+    system_prompt_file: ./prompts/classifier.md
+    max_tokens: 10              # Just SIMPLE or COMPLEX
+  
+  # Discussion specialists - each contributes based on expertise
   divergent:
+    system_prompt_file: ./prompts/divergent.md
     max_iterations: 25
-    max_tokens: 500
+    max_tokens: 2000            # Explores options and alternatives
   
   convergent:
+    system_prompt_file: ./prompts/convergent.md
     max_iterations: 25
-    max_tokens: 500
+    max_tokens: 2000            # Synthesizes insights
   
   critical:
+    system_prompt_file: ./prompts/critical.md
     max_iterations: 25
-    max_tokens: 500
+    max_tokens: 2000            # Validates and identifies risks
+  
+  pragmatist:
+    system_prompt_file: ./prompts/pragmatist.md
+    max_iterations: 25
+    max_tokens: 2000            # Reality-checks feasibility
+  
+  user_proxy:
+    system_prompt_file: ./prompts/user_proxy.md
+    max_iterations: 25
+    max_tokens: 2000            # Advocates for user perspective
+  
+  quantifier:
+    system_prompt_file: ./prompts/quantifier.md
+    max_iterations: 25
+    max_tokens: 2000            # Demands metrics and data
+  
+  summarizer:
+    system_prompt_file: ./prompts/summarizer.md
+    max_iterations: 25
+    max_tokens: 0               # No limit for comprehensive summaries
+  
+  web_searcher:
+    system_prompt_file: ./prompts/web_searcher.md
+    max_iterations: 25
+    max_tokens: 0               # No limit for search results
 
 consensus:
   discussion_rounds: 20
   specialist_timeout_seconds: 300
   summary_interval_seconds: 10  # Rolling summary update frequency
 ```
+
+**Note on Token Limits**: Token limits are injected directly into agent system prompts to ensure more reliable response length control compared to API-only constraints. Each agent sees their token budget explicitly stated in their system prompt.
 
 ---
 

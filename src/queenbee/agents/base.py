@@ -129,10 +129,10 @@ class BaseAgent:
             return "standard"
 
     def _load_system_prompt(self) -> str:
-        """Load system prompt from file.
+        """Load system prompt from file and inject max_tokens constraint.
 
         Returns:
-            System prompt text.
+            System prompt text with token limit injected.
         """
         # Get prompt file path based on agent type
         if self.agent_type == AgentType.QUEEN:
@@ -165,8 +165,49 @@ class BaseAgent:
         with open(prompt_path, "r") as f:
             prompt = f.read()
 
+        # Inject max_tokens constraint into system prompt
+        # Queen and Classifier have hardcoded limits, others come from config
+        max_tokens = self._get_max_tokens_for_agent()
+        if max_tokens > 0:
+            token_constraint = f"\n\n**Token Limit**: Keep your response to approximately {max_tokens} tokens maximum."
+            prompt += token_constraint
+
         logger.debug(f"Loaded prompt for {self.agent_type.value} from {prompt_file}")
         return prompt
+
+    def _get_max_tokens_for_agent(self) -> int:
+        """Get max tokens limit for this agent.
+
+        Returns:
+            Maximum tokens for this agent (0 = no limit).
+        """
+        # Queen has special handling for different request types
+        if self.agent_type == AgentType.QUEEN:
+            return 0  # No limit in system prompt (handled separately for simple/complex in code)
+        
+        # Classifier has special handling
+        if self.agent_type == AgentType.CLASSIFIER:
+            return 0  # No limit in system prompt (handled in code)
+        
+        # All other agents get max_tokens from their config
+        if self.agent_type == AgentType.DIVERGENT:
+            return getattr(self.config.agents.divergent, 'max_tokens', 2000)
+        elif self.agent_type == AgentType.CONVERGENT:
+            return getattr(self.config.agents.convergent, 'max_tokens', 2000)
+        elif self.agent_type == AgentType.CRITICAL:
+            return getattr(self.config.agents.critical, 'max_tokens', 2000)
+        elif self.agent_type == AgentType.PRAGMATIST:
+            return getattr(self.config.agents.pragmatist, 'max_tokens', 2000)
+        elif self.agent_type == AgentType.USER_PROXY:
+            return getattr(self.config.agents.user_proxy, 'max_tokens', 2000)
+        elif self.agent_type == AgentType.QUANTIFIER:
+            return getattr(self.config.agents.quantifier, 'max_tokens', 2000)
+        elif self.agent_type == AgentType.SUMMARIZER:
+            return getattr(self.config.agents.summarizer, 'max_tokens', 0)
+        elif self.agent_type == AgentType.WEB_SEARCHER:
+            return getattr(self.config.agents.web_searcher, 'max_tokens', 0) if hasattr(self.config.agents, 'web_searcher') else 0
+        else:
+            return 0
 
     def _get_agent_config(self) -> dict:
         """Get agent-specific configuration.

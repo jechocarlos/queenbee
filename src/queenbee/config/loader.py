@@ -106,12 +106,21 @@ class AgentPromptConfig(BaseSettings):
     max_tokens: int = Field(default=0)  # 0 means no limit
 
 
+class QueenConfig(BaseSettings):
+    """Queen agent configuration with separate limits for simple/complex requests."""
+
+    system_prompt_file: str
+    complexity_threshold: str = Field(default="auto")
+    simple_max_tokens: int = Field(default=100)
+    complex_max_tokens: int = Field(default=8000)
+
+
 class AgentsConfig(BaseSettings):
     """Agents configuration."""
 
     ttl: AgentTTLConfig
     max_concurrent_specialists: int = Field(default=10)
-    queen: AgentPromptConfig
+    queen: QueenConfig
     classifier: AgentPromptConfig
     divergent: AgentPromptConfig
     convergent: AgentPromptConfig

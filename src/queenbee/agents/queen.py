@@ -101,13 +101,17 @@ A: Paris
 
 Now answer this question with ONLY the final answer:"""
         
+        # Inject token limit from config
+        simple_max_tokens = getattr(self.config.agents.queen, 'simple_max_tokens', 100)
+        simple_system += f"\n\n**Token Limit**: Keep your response to approximately {simple_max_tokens} tokens maximum."
+        
         self.record_activity()
         response = self.ollama.generate(
             prompt=user_input,
             system=simple_system,
             temperature=0.0,
             stream=stream,
-            max_tokens=100,  # Increased to handle slightly longer factual answers
+            max_tokens=simple_max_tokens,
         )
         return response
 
@@ -260,8 +264,12 @@ Requirements:
 
 DO NOT just repeat the synthesis - integrate it into a clear, direct answer that fully addresses what the user asked."""
 
+        # Get complex max_tokens from config
+        complex_max_tokens = getattr(self.config.agents.queen, 'complex_max_tokens', 8000)
+        prompt += f"\n\n**Token Limit**: Your response should be approximately {complex_max_tokens} tokens maximum to ensure comprehensive coverage."
+        
         # For complex requests, allow much longer responses to properly synthesize specialist insights
-        response = self.generate_response(prompt, stream=False, max_tokens=8000, temperature=0.7)
+        response = self.generate_response(prompt, stream=False, max_tokens=complex_max_tokens, temperature=0.7)
         return str(response)
     
     def _get_conversation_context(self, limit: int = 10) -> str:

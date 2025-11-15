@@ -60,12 +60,16 @@ Answer with EXACTLY ONE WORD: SIMPLE or COMPLEX
 
 Your classification:"""
 
+        # Inject token limit from config
+        classifier_max_tokens = getattr(self.config.agents.classifier, 'max_tokens', 10)
+        classification_prompt += f"\n\n**Token Limit**: Keep your response to approximately {classifier_max_tokens} tokens maximum."
+
         try:
             response = self.generate_response(
                 prompt=classification_prompt,
                 temperature=0.0,
                 stream=False,
-                max_tokens=10
+                max_tokens=classifier_max_tokens
             )
             
             decision = str(response).strip().upper()

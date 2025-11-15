@@ -109,6 +109,8 @@ agents:
   queen:
     system_prompt_file: ./prompts/queen.md
     complexity_threshold: auto
+    simple_max_tokens: 100
+    complex_max_tokens: 8000
   
   classifier:
     system_prompt_file: ./prompts/classifier.md

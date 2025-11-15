@@ -220,7 +220,8 @@ Now answer this question with ONLY the final answer:"""
                 f"[bold cyan]{queen_response}[/bold cyan]",
                 title="[bold cyan]🐝 QUEEN'S FINAL RESPONSE[/bold cyan]",
                 border_style="cyan",
-                padding=(1, 2)
+                padding=(1, 2),
+                expand=False  # Don't force full width, let text flow naturally
             ))
             console.print()
             
@@ -248,16 +249,19 @@ My specialist team has completed their analysis. Here is their synthesis:
 
 {synthesis}
 
-Based on this synthesis, provide a clear, direct answer to the user's question. You may:
-- Acknowledge the specialists' insights
-- Present the answer in your own words
-- Add brief context if helpful
-- Keep it concise and actionable
+Based on this synthesis, provide a COMPLETE and COMPREHENSIVE answer to the user's question. 
 
-Focus on answering the user's question, not describing the process."""
+Requirements:
+- Provide a full, detailed answer (not abbreviated or shortened)
+- Continue writing until you've fully answered the question
+- Use structure (sections, bullets, numbered lists) if helpful
+- Include all relevant context and details from the synthesis
+- Do NOT stop early or cut off in the middle of explaining
 
-        # For complex requests, allow longer responses to properly synthesize specialist insights
-        response = self.generate_response(prompt, stream=False, max_tokens=3000)
+DO NOT just repeat the synthesis - integrate it into a clear, direct answer that fully addresses what the user asked."""
+
+        # For complex requests, allow much longer responses to properly synthesize specialist insights
+        response = self.generate_response(prompt, stream=False, max_tokens=8000, temperature=0.7)
         return str(response)
     
     def _get_conversation_context(self, limit: int = 10) -> str:

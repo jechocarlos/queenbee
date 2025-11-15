@@ -124,17 +124,17 @@ agents:
   summarizer:
     system_prompt_file: ./prompts/summarizer.md
     max_iterations: 25
-    max_tokens: 2000  # No limit for summarizer
+    max_tokens: 0  # No limit for summarizer
   
   web_searcher:
     system_prompt_file: ./prompts/web_searcher.md
-    max_tokens: 5000  # More tokens for search results
+    max_tokens: 0  # More tokens for search results
 consensus:
   max_rounds: 30
   agreement_threshold: "all"
   discussion_rounds: 30  # Number of rounds for iterative agent discussion
   specialist_timeout_seconds: 300  # Maximum wait time for specialists (5 minutes)
-  summary_interval_seconds: 10  # Update rolling summary every 10 seconds
+  summary_interval_seconds: 15  # Update rolling summary every 15 seconds
 
 logging:
   level: ${LOG_LEVEL:INFO}

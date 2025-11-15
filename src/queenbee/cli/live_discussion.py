@@ -232,7 +232,11 @@ class LiveDiscussionViewer:
                         for agent, agent_stat in agent_status.items():
                             if agent not in last_agent_status or last_agent_status[agent] != agent_stat:
                                 emoji = self.AGENT_EMOJIS.get(agent, "🤖")
-                                self.console.print(f"{emoji} {agent}: {agent_stat}", style="dim cyan")
+                                # Use special styling for waiting status
+                                if agent_stat == "waiting":
+                                    self.console.print(f"⏳ {agent}: waiting for @WebSearcher...", style="dim yellow")
+                                else:
+                                    self.console.print(f"{emoji} {agent}: {agent_stat}", style="dim cyan")
                         last_agent_status = agent_status.copy()
                     elif agent_status != last_agent_status:
                         # Still track the change even if we didn't print it

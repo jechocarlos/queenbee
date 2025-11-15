@@ -99,6 +99,7 @@ class SpecialistWorker:
         agent_status = {}  # Track if each agent is thinking or idle
         rolling_summary = {"content": "", "last_update": 0}  # Track rolling summary
         web_search_events = []  # Track web search requests: {"agent": "Divergent", "query": "..."}
+        web_search_queue = []  # Queue for pending web search requests: [{"agent": "...", "query": "..."}]
         
         # Statistics tracking
         start_time = time.time()
@@ -233,17 +234,36 @@ class SpecialistWorker:
                             
                             # Check if agent requested a web search
                             if response and response.startswith("__WEB_SEARCH_REQUEST__"):
+                                search_query = response.replace("__WEB_SEARCH_REQUEST__", "", 1)
+                                
                                 # Check if WebSearcher is already busy
                                 with discussion_lock:
                                     websearcher_status = agent_status.get("WebSearcher", "idle")
                                 
                                 if websearcher_status == "searching":
-                                    # WebSearcher is busy, agent needs to wait or pass
-                                    logger.info(f"{agent_name} tried to request search but WebSearcher is busy")
-                                    agent_status[agent_name] = "idle"
+                                    # WebSearcher is busy, add to queue and wait
+                                    with discussion_lock:
+                                        web_search_queue.append({
+                                            "agent": agent_name,
+                                            "query": search_query
+                                        })
+                                    logger.info(f"{agent_name} queued web search request (WebSearcher busy). Queue length: {len(web_search_queue)}")
+                                    
+                                    # Add a contribution informing about waiting
+                                    with discussion_lock:
+                                        contribution = {
+                                            "agent": agent_name,
+                                            "content": f"*Waiting for @WebSearcher to finish current search before requesting: '{search_query[:80]}{'...' if len(search_query) > 80 else ''}'*",
+                                            "timestamp": time.time(),
+                                            "contribution_num": len(discussion) + 1,
+                                            "hidden": True  # Don't display to user, but available to agents
+                                        }
+                                        discussion.append(contribution)
+                                        agent_status[agent_name] = "waiting"
+                                    
+                                    # Agent will check queue on next iteration
                                     continue
                                 
-                                search_query = response.replace("__WEB_SEARCH_REQUEST__", "", 1)
                                 logger.info(f"{agent_name} requested web search: {search_query[:100]}")
                                 
                                 # Record web search event and track statistics
@@ -291,6 +311,58 @@ class SpecialistWorker:
                                         "hidden": True  # Don't display in live discussion, but agents can see it
                                     }
                                     discussion.append(contribution)
+                                    
+                                    # Check if there are queued requests
+                                    if web_search_queue:
+                                        next_request = web_search_queue.pop(0)
+                                        next_agent = next_request["agent"]
+                                        next_query = next_request["query"]
+                                        logger.info(f"Processing queued web search from {next_agent}: {next_query[:100]}")
+                                        
+                                        # Set WebSearcher back to searching for queued request
+                                        agent_status["WebSearcher"] = "searching"
+                                        agent_status[next_agent] = "thinking"
+                                        
+                                        # Track web search stats
+                                        stats["web_searches"] += 1
+                                        stats["web_searches_by_agent"][next_agent] = stats["web_searches_by_agent"].get(next_agent, 0) + 1
+                                        
+                                        # Record web search event
+                                        web_search_events.append({
+                                            "agent": next_agent,
+                                            "query": next_query,
+                                            "timestamp": time.time()
+                                        })
+                                        
+                                        # Update UI immediately
+                                        intermediate_result = {
+                                            "status": "in_progress",
+                                            "contributions": discussion.copy(),
+                                            "rolling_summary": rolling_summary["content"],
+                                            "task": user_input,
+                                            "agent_status": agent_status.copy(),
+                                            "web_search_events": web_search_events.copy()
+                                        }
+                                        self.task_repo.set_task_result(task_id, json.dumps(intermediate_result))
+                                        
+                                        # Perform the queued web search
+                                        queued_search_results = web_searcher.search(
+                                            query=next_query,
+                                            requesting_agent=next_agent,
+                                            stream=False
+                                        )
+                                        
+                                        # Add queued search results
+                                        queued_contribution = {
+                                            "agent": "WebSearcher",
+                                            "content": f"Search results for '{next_query}':\n\n{queued_search_results}",
+                                            "timestamp": time.time(),
+                                            "contribution_num": len(discussion) + 1,
+                                            "hidden": True  # Don't display to user
+                                        }
+                                        discussion.append(queued_contribution)
+                                        agent_status["WebSearcher"] = "idle"
+                                        agent_status[next_agent] = "idle"
                                     
                                     intermediate_result = {
                                         "status": "in_progress",

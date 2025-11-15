@@ -107,7 +107,7 @@ Now answer this question with ONLY the final answer:"""
             system=simple_system,
             temperature=0.0,
             stream=stream,
-            max_tokens=30,
+            max_tokens=100,  # Increased to handle slightly longer factual answers
         )
         return response
 
@@ -256,7 +256,8 @@ Based on this synthesis, provide a clear, direct answer to the user's question. 
 
 Focus on answering the user's question, not describing the process."""
 
-        response = self.generate_response(prompt, stream=False)
+        # For complex requests, allow longer responses to properly synthesize specialist insights
+        response = self.generate_response(prompt, stream=False, max_tokens=3000)
         return str(response)
     
     def _get_conversation_context(self, limit: int = 10) -> str:

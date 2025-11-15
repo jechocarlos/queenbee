@@ -72,45 +72,43 @@ class QueenAgent(BaseAgent):
     def _analyze_complexity(self, user_input: str) -> bool:
         """Analyze if request is complex and requires specialists.
 
+        Uses the Queen's LLM to intelligently decide if the question needs
+        specialist discussion or can be answered directly.
+
         Args:
             user_input: User's input text.
 
         Returns:
-            True if complex, False if simple.
+            True if complex (needs specialists), False if simple (answer directly).
         """
-        # Simple heuristics for MVP
-        # Complex if:
-        # - Multiple questions
-        # - Contains words like "analyze", "compare", "design", "evaluate"
-        # - Long input (> 50 words)
-        # - Contains "should I" or "which is better"
+        analysis_prompt = f"""Analyze if this user question requires a multi-agent discussion or can be answered directly.
 
-        word_count = len(user_input.split())
-        
-        complex_keywords = [
-            r'\banalyze\b', r'\bcompare\b', r'\bevaluate\b', r'\bdesign\b',
-            r'\barchitecture\b', r'\btrade-?offs?\b', r'\bpros and cons\b',
-            r'\bshould i\b', r'\bwhich (?:is )?better\b', r'\bhow (?:do i|to)\b',
-            r'\bwhat are the\b', r'\bexplain\b', r'\bdiscuss\b'
-        ]
-        
-        has_complex_keywords = any(
-            re.search(pattern, user_input.lower())
-            for pattern in complex_keywords
-        )
-        
-        has_multiple_questions = user_input.count('?') > 1
-        is_long = word_count > 50
+User Question: {user_input}
 
-        is_complex = has_complex_keywords or has_multiple_questions or is_long
+Decision Criteria:
+- SIMPLE (answer directly): Factual lookups, basic math, definitions, single straightforward answers
+- COMPLEX (needs specialists): Requires analysis, comparison, design decisions, trade-offs, multiple perspectives, implementation guidance
 
-        logger.debug(
-            f"Complexity analysis: keywords={has_complex_keywords}, "
-            f"multiple_questions={has_multiple_questions}, "
-            f"long={is_long}, result={is_complex}"
-        )
+Respond with ONLY one word: SIMPLE or COMPLEX"""
 
-        return is_complex
+        try:
+            response = self.generate_response(
+                prompt=analysis_prompt,
+                temperature=0.0,
+                stream=False,
+                max_tokens=10
+            )
+            
+            decision = str(response).strip().upper()
+            is_complex = decision == "COMPLEX"
+            
+            logger.debug(f"Complexity analysis: decision={decision}, is_complex={is_complex}")
+            return is_complex
+            
+        except Exception as e:
+            logger.warning(f"Error in complexity analysis, defaulting to complex: {e}")
+            # On error, default to complex to ensure specialists handle it
+            return True
 
     def _handle_simple_request(self, user_input: str, stream: bool = False) -> Union[str, Iterator[str]]:
         """Handle simple request directly.

@@ -17,6 +17,7 @@ class LiveDiscussionViewer:
         "Divergent": "bright_magenta",
         "Convergent": "bright_cyan",
         "Critical": "bright_yellow",
+        "Pragmatist": "bright_blue",
         "WebSearcher": "bright_green",
     }
 
@@ -24,6 +25,7 @@ class LiveDiscussionViewer:
         "Divergent": "🌟",
         "Convergent": "🔗",
         "Critical": "🔍",
+        "Pragmatist": "⚙️",
         "WebSearcher": "🔎",
     }
 

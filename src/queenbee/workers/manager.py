@@ -11,6 +11,7 @@ from uuid import UUID
 from queenbee.agents.convergent import ConvergentAgent
 from queenbee.agents.critical import CriticalAgent
 from queenbee.agents.divergent import DivergentAgent
+from queenbee.agents.pragmatist import PragmatistAgent
 from queenbee.config.loader import Config, load_config
 from queenbee.db.connection import DatabaseManager
 from queenbee.db.models import AgentType, TaskRepository, TaskStatus
@@ -175,6 +176,8 @@ class SpecialistWorker:
                     agent = DivergentAgent(self.session_id, self.config, self.db)
                 elif agent_type == "convergent":
                     agent = ConvergentAgent(self.session_id, self.config, self.db)
+                elif agent_type == "pragmatist":
+                    agent = PragmatistAgent(self.session_id, self.config, self.db)
                 else:  # critical
                     agent = CriticalAgent(self.session_id, self.config, self.db)
                 
@@ -477,7 +480,8 @@ class SpecialistWorker:
         agents = [
             ("Divergent", "divergent"),
             ("Convergent", "convergent"),
-            ("Critical", "critical")
+            ("Critical", "critical"),
+            ("Pragmatist", "pragmatist")
         ]
         
         for agent_name, agent_type in agents:
@@ -769,6 +773,42 @@ IMPORTANT - WEB SEARCH FIRST:
 
 KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about what you're adding beyond what's already been said."""
 
+        elif agent_name == "Pragmatist":
+            token_instruction = f"Maximum {max_tokens_convergent} tokens" if max_tokens_convergent > 0 else "Keep it concise"
+            prompt = f"""Original question: {user_input}
+
+{f'{context}\n' if context else ''}
+Discussion so far:
+{discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
+
+You are the Pragmatist. Your role is to ground discussions in practical reality and implementation feasibility.
+
+CRITICAL: Before responding, carefully analyze what has ALREADY been said:
+1. Review all proposed solutions and approaches
+2. Check what feasibility concerns have been raised
+3. Ask yourself: "What NEW practical constraint or reality check can I provide?"
+
+Respond with [PASS] if:
+- Practical constraints have been thoroughly covered
+- Feasibility has been adequately addressed
+- You would just be repeating existing reality checks
+
+Only contribute if you can add:
+- NEW practical constraints (time, resources, skills, budget)
+- Realistic assessment of what's actually buildable
+- Incremental or "good enough" alternatives
+- Technical feasibility concerns not yet mentioned
+- Resource or timeline reality checks
+
+IMPORTANT - WEB SEARCH FIRST:
+- If you need data on implementation timelines, resource requirements, or real-world feasibility, ALWAYS request a web search FIRST
+- Don't guess about costs or timelines - get actual data
+- Request search naturally: "Hey @WebSearcher! Search for [your query]"
+- Examples: typical implementation times, resource requirements, real project costs, case studies
+- Base your feasibility assessment on real-world data, not assumptions
+
+KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Focus on practical constraints and what's actually achievable."""
+
         else:  # Critical
             token_instruction = f"Maximum {max_tokens_critical} tokens" if max_tokens_critical > 0 else "Keep it concise"
             prompt = f"""Original question: {user_input}
@@ -812,6 +852,8 @@ KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about th
             max_tokens = self.config.agents.convergent.max_tokens
         elif agent_name == "Critical":
             max_tokens = self.config.agents.critical.max_tokens
+        elif agent_name == "Pragmatist":
+            max_tokens = self.config.agents.convergent.max_tokens  # Use same as convergent for now
         
         # Get response from agent with max_tokens from config
         try:

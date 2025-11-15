@@ -19,6 +19,7 @@ class LiveDiscussionViewer:
         "Critical": "bright_yellow",
         "Pragmatist": "bright_blue",
         "UserProxy": "bright_white",
+        "Quantifier": "bright_red",
         "WebSearcher": "bright_green",
     }
 
@@ -28,6 +29,7 @@ class LiveDiscussionViewer:
         "Critical": "🔍",
         "Pragmatist": "⚙️",
         "UserProxy": "👤",
+        "Quantifier": "📊",
         "WebSearcher": "🔎",
     }
 

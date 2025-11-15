@@ -12,6 +12,7 @@ from queenbee.agents.convergent import ConvergentAgent
 from queenbee.agents.critical import CriticalAgent
 from queenbee.agents.divergent import DivergentAgent
 from queenbee.agents.pragmatist import PragmatistAgent
+from queenbee.agents.quantifier import QuantifierAgent
 from queenbee.agents.user_proxy import UserProxyAgent
 from queenbee.config.loader import Config, load_config
 from queenbee.db.connection import DatabaseManager
@@ -181,6 +182,8 @@ class SpecialistWorker:
                     agent = PragmatistAgent(self.session_id, self.config, self.db)
                 elif agent_type == "user_proxy":
                     agent = UserProxyAgent(self.session_id, self.config, self.db)
+                elif agent_type == "quantifier":
+                    agent = QuantifierAgent(self.session_id, self.config, self.db)
                 else:  # critical
                     agent = CriticalAgent(self.session_id, self.config, self.db)
                 
@@ -485,7 +488,8 @@ class SpecialistWorker:
             ("Convergent", "convergent"),
             ("Critical", "critical"),
             ("Pragmatist", "pragmatist"),
-            ("UserProxy", "user_proxy")
+            ("UserProxy", "user_proxy"),
+            ("Quantifier", "quantifier")
         ]
         
         for agent_name, agent_type in agents:
@@ -884,6 +888,42 @@ IMPORTANT - WEB SEARCH FIRST:
 
 KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Focus on user needs and whether solutions serve actual users."""
 
+        elif agent_name == "Quantifier":
+            token_instruction = f"Maximum {max_tokens_convergent} tokens" if max_tokens_convergent > 0 else "Keep it concise"
+            prompt = f"""Original question: {user_input}
+
+{f'{context}\n' if context else ''}
+Discussion so far:
+{discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
+
+You are the Quantifier. Your role is to ground discussions in concrete numbers, metrics, and measurable outcomes.
+
+CRITICAL: Before responding, carefully analyze what has ALREADY been said:
+1. Review all discussions for vague qualitative claims
+2. Check what metrics and numbers have been defined
+3. Ask yourself: "What NEW quantitative perspective can I provide?"
+
+Respond with [PASS] if:
+- Concrete metrics and numbers have been thoroughly defined
+- Success criteria with thresholds already established
+- You would just be repeating existing quantitative analysis
+
+Only contribute if you can add:
+- NEW specific metrics or measurable criteria not yet defined
+- Challenge vague terms ("faster," "better," "scalable") with "how much?"
+- Concrete success thresholds and acceptance criteria
+- Cost/benefit analysis with actual numbers
+- Performance benchmarks or industry standards
+
+IMPORTANT - WEB SEARCH FIRST:
+- If you need actual benchmarks, costs, performance data, or industry metrics, ALWAYS request a web search FIRST
+- Don't estimate or guess numbers - get real data
+- Request search naturally: "Hey @WebSearcher! Search for [your query]"
+- Examples: performance benchmarks, pricing comparisons, industry standards, typical metrics
+- Base your quantitative analysis on actual verified data, not estimates
+
+KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Demand specific numbers and define concrete metrics."""
+
         else:  # Critical (fallback)
             token_instruction = f"Maximum {max_tokens_critical} tokens" if max_tokens_critical > 0 else "Keep it concise"
             prompt = f"""You are the Critical validator. Provide critical analysis."""
@@ -899,6 +939,8 @@ KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Focus on user needs 
         elif agent_name == "Pragmatist":
             max_tokens = self.config.agents.convergent.max_tokens  # Use same as convergent for now
         elif agent_name == "UserProxy":
+            max_tokens = self.config.agents.convergent.max_tokens  # Use same as convergent for now
+        elif agent_name == "Quantifier":
             max_tokens = self.config.agents.convergent.max_tokens  # Use same as convergent for now
         
         # Get response from agent with max_tokens from config

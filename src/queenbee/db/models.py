@@ -21,6 +21,7 @@ class AgentType(str, Enum):
     CRITICAL = "critical"
     PRAGMATIST = "pragmatist"
     USER_PROXY = "user_proxy"
+    QUANTIFIER = "quantifier"
     SUMMARIZER = "summarizer"
     WEB_SEARCHER = "web_searcher"
 

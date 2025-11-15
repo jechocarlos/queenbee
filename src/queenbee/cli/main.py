@@ -222,7 +222,13 @@ def main() -> int:
             unavailable_agents = []
             
             # Show all agent assignments with availability status
-            for agent_type in ['queen', 'divergent', 'convergent', 'critical', 'summarizer', 'web_searcher']:
+            # Include all agents from agent_inference config
+            all_agents = [
+                'queen', 'classifier', 'divergent', 'convergent', 'critical',
+                'pragmatist', 'user_proxy', 'quantifier', 'summarizer', 'web_searcher'
+            ]
+            
+            for agent_type in all_agents:
                 pack_name = getattr(config.agent_inference, agent_type, 'standard')
                 
                 # Get the pack from the active provider
@@ -238,9 +244,9 @@ def main() -> int:
                     model_available = model_status.get(pack.model, False)
                     
                     if model_available:
-                        console.print(f"[dim]  {agent_type:12} → {model_short} [green]✓[/green][/dim]")
+                        console.print(f"[dim]  {agent_type:12} → {pack_name:10}: {model_short} [green]✓[/green][/dim]")
                     else:
-                        console.print(f"[dim]  {agent_type:12} → {model_short} [red]✗ NOT FOUND[/red][/dim]")
+                        console.print(f"[dim]  {agent_type:12} → {pack_name:10}: {model_short} [red]✗ NOT FOUND[/red][/dim]")
                         unavailable_agents.append((agent_type, pack.model))
                 else:
                     console.print(f"[dim]  {agent_type:12} → [red]UNAVAILABLE (no pack)[/red][/dim]")

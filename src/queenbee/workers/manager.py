@@ -12,6 +12,7 @@ from queenbee.agents.convergent import ConvergentAgent
 from queenbee.agents.critical import CriticalAgent
 from queenbee.agents.divergent import DivergentAgent
 from queenbee.agents.pragmatist import PragmatistAgent
+from queenbee.agents.user_proxy import UserProxyAgent
 from queenbee.config.loader import Config, load_config
 from queenbee.db.connection import DatabaseManager
 from queenbee.db.models import AgentType, TaskRepository, TaskStatus
@@ -178,6 +179,8 @@ class SpecialistWorker:
                     agent = ConvergentAgent(self.session_id, self.config, self.db)
                 elif agent_type == "pragmatist":
                     agent = PragmatistAgent(self.session_id, self.config, self.db)
+                elif agent_type == "user_proxy":
+                    agent = UserProxyAgent(self.session_id, self.config, self.db)
                 else:  # critical
                     agent = CriticalAgent(self.session_id, self.config, self.db)
                 
@@ -481,7 +484,8 @@ class SpecialistWorker:
             ("Divergent", "divergent"),
             ("Convergent", "convergent"),
             ("Critical", "critical"),
-            ("Pragmatist", "pragmatist")
+            ("Pragmatist", "pragmatist"),
+            ("UserProxy", "user_proxy")
         ]
         
         for agent_name, agent_type in agents:
@@ -844,6 +848,46 @@ IMPORTANT - WEB SEARCH FIRST:
 
 KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about the new concern or validation you're adding."""
 
+        elif agent_name == "UserProxy":
+            token_instruction = f"Maximum {max_tokens_convergent} tokens" if max_tokens_convergent > 0 else "Keep it concise"
+            prompt = f"""Original question: {user_input}
+
+{f'{context}\n' if context else ''}
+Discussion so far:
+{discussion_text if discussion_text else "No discussion yet - you'll be the first to contribute."}
+
+You are the UserProxy. Your role is to represent the end-user perspective and ensure solutions serve actual user needs.
+
+CRITICAL: Before responding, carefully analyze what has ALREADY been said:
+1. Review all proposed solutions and technical approaches
+2. Check what user-focused concerns have been raised
+3. Ask yourself: "What NEW user perspective can I provide?"
+
+Respond with [PASS] if:
+- User needs and experience have been thoroughly considered
+- User impact has been adequately addressed
+- You would just be repeating existing user advocacy
+
+Only contribute if you can add:
+- NEW user needs or pain points not yet mentioned
+- User experience concerns overlooked by technical discussion
+- Challenge to technical complexity that doesn't serve users
+- User value assessment of proposed solutions
+- Accessibility or usability concerns
+
+IMPORTANT - WEB SEARCH FIRST:
+- If you need data on user behavior, feedback, or usability research, ALWAYS request a web search FIRST
+- Don't assume what users want - get real user data
+- Request search naturally: "Hey @WebSearcher! Search for [your query]"
+- Examples: user research, surveys, common complaints, usability studies, accessibility standards
+- Base your advocacy on actual user evidence, not assumptions
+
+KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Focus on user needs and whether solutions serve actual users."""
+
+        else:  # Critical (fallback)
+            token_instruction = f"Maximum {max_tokens_critical} tokens" if max_tokens_critical > 0 else "Keep it concise"
+            prompt = f"""You are the Critical validator. Provide critical analysis."""
+        
         # Get max_tokens from config based on agent type
         max_tokens = 0  # default no limit
         if agent_name == "Divergent":
@@ -853,6 +897,8 @@ KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Be specific about th
         elif agent_name == "Critical":
             max_tokens = self.config.agents.critical.max_tokens
         elif agent_name == "Pragmatist":
+            max_tokens = self.config.agents.convergent.max_tokens  # Use same as convergent for now
+        elif agent_name == "UserProxy":
             max_tokens = self.config.agents.convergent.max_tokens  # Use same as convergent for now
         
         # Get response from agent with max_tokens from config

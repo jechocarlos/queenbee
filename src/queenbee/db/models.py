@@ -20,6 +20,7 @@ class AgentType(str, Enum):
     CONVERGENT = "convergent"
     CRITICAL = "critical"
     PRAGMATIST = "pragmatist"
+    USER_PROXY = "user_proxy"
     SUMMARIZER = "summarizer"
     WEB_SEARCHER = "web_searcher"
 

@@ -47,12 +47,26 @@ QueenBee is a sophisticated agent orchestration platform that coordinates specia
 ## ✨ Key Features
 
 ### Core Capabilities
-- 🎯 **Pure Orchestration**: Queen agent delegates all work to specialist team
-- 🧠 **Multi-Agent Collaboration**: Four specialists tackle every query together
+- 🎯 **Intelligent Query Classification**: Automatically routes simple vs complex questions
+- 🧠 **Multi-Agent Collaboration**: Specialized agents contribute based on expertise relevance
+- 🧩 **Smart Contribution System**: Agents only speak when they add genuine value (see [docs/agent-contribution-intelligence.md](docs/agent-contribution-intelligence.md))
 - 📊 **Real-Time Insights**: Live rolling summaries show progress during discussion
 - ⚡ **Streaming Responses**: Token-by-token updates for immediate feedback
 - 🔄 **Async Processing**: Specialists run in parallel background workers
 - 💾 **Persistent State**: PostgreSQL-backed memory, tasks, and knowledge
+
+### Agent Expertise System
+- 🤖 **10 Specialized Agents**: Each with distinct expertise and contribution triggers
+  - **Queen**: Orchestrates and synthesizes final responses
+  - **Classifier**: Routes queries as SIMPLE or COMPLEX
+  - **Divergent**: Explores options and challenges assumptions
+  - **Convergent**: Synthesizes insights into actionable recommendations
+  - **Critical**: Validates reasoning and identifies risks
+  - **Pragmatist**: Reality-checks feasibility and resources
+  - **UserProxy**: Advocates for user needs and experience
+  - **Quantifier**: Demands data and concrete metrics
+  - **Summarizer**: Generates rolling updates and synthesis
+  - **WebSearcher**: Fetches current information when needed
 
 ### LLM Provider Support
 - 🏠 **Ollama** (Local): Privacy-focused, free, full control

@@ -640,7 +640,7 @@ class SpecialistWorker:
         user_input: str,
         contribution_count: int
     ) -> bool:
-        """Decide if agent should contribute based on discussion state.
+        """Intelligently decide if agent should contribute based on relevance and discussion state.
         
         Args:
             agent_name: Name of the agent.
@@ -651,25 +651,123 @@ class SpecialistWorker:
         Returns:
             True if agent should try to contribute.
         """
-        # First contribution - always try
+        # First contribution - assess relevance before jumping in
         if contribution_count == 0:
-            return True
+            # For first 2 contributions total, let first agents contribute freely
+            if len(discussion) < 2:
+                return True
+            # After that, check if agent's expertise is relevant
+            return self._is_agent_expertise_relevant(agent_name, user_input, discussion)
         
-        # Don't spam - wait for others to contribute
+        # Prevent consecutive contributions from same agent
         if discussion:
             last_contrib = discussion[-1]
-            # Don't contribute twice in a row
             if last_contrib["agent"] == agent_name:
                 return False
+            
+            # Prevent dominating discussion - check last 3 contributions
+            if len(discussion) >= 3:
+                recent = [d["agent"] for d in discussion[-3:]]
+                if recent.count(agent_name) >= 2:
+                    return False
         
-        # Limit contributions per agent (max 3)
+        # Hard limit: max 3 contributions per agent (quality over quantity)
         if contribution_count >= 3:
             return False
         
-        # If discussion is long enough (6+ contributions), agents can be more selective
-        if len(discussion) >= 6:
-            # Only contribute every other check
-            return contribution_count < 2
+        # Early discussion (< 6 contributions): Be more selective
+        if len(discussion) < 6:
+            # Only contribute if relevant to current discussion direction
+            return self._is_contribution_needed(agent_name, discussion)
+        
+        # Mid discussion (6-12 contributions): Very selective
+        if len(discussion) < 12:
+            # Only if expertise directly addresses a gap
+            if contribution_count >= 2:
+                return False
+            return self._is_agent_expertise_relevant(agent_name, user_input, discussion)
+        
+        # Late discussion (12+ contributions): Almost never contribute
+        # Discussion should be converging, not expanding
+        return False
+    
+    def _is_agent_expertise_relevant(
+        self,
+        agent_name: str,
+        user_input: str,
+        discussion: list[dict]
+    ) -> bool:
+        """Assess if agent's expertise is relevant to the question and current discussion.
+        
+        Args:
+            agent_name: Name of the agent.
+            user_input: Original user question.
+            discussion: Current discussion history.
+            
+        Returns:
+            True if agent's expertise is relevant.
+        """
+        user_input_lower = user_input.lower()
+        
+        # Keywords that indicate agent expertise relevance
+        relevance_keywords = {
+            "Divergent": ["options", "alternatives", "possibilities", "approaches", "ideas", "creative", "different ways", "what if"],
+            "Convergent": ["decide", "choose", "recommend", "best", "solution", "action", "implement", "plan", "synthesis"],
+            "Critical": ["risks", "problems", "concerns", "issues", "validate", "verify", "wrong", "fail", "security", "flaws"],
+            "Pragmatist": ["practical", "feasible", "implement", "resources", "cost", "timeline", "realistic", "constraints"],
+            "UserProxy": ["user", "experience", "usability", "customer", "audience", "accessible", "interface", "ux"],
+            "Quantifier": ["metrics", "numbers", "measure", "data", "performance", "benchmark", "statistics", "quantify"],
+        }
+        
+        keywords = relevance_keywords.get(agent_name, [])
+        
+        # Check if question mentions relevant keywords
+        question_relevance = any(kw in user_input_lower for kw in keywords)
+        
+        # Check if recent discussion mentions relevant concepts
+        if discussion:
+            recent_discussion = " ".join([d["content"].lower() for d in discussion[-3:]])
+            discussion_relevance = any(kw in recent_discussion for kw in keywords)
+        else:
+            discussion_relevance = False
+        
+        return question_relevance or discussion_relevance
+    
+    def _is_contribution_needed(
+        self,
+        agent_name: str,
+        discussion: list[dict]
+    ) -> bool:
+        """Determine if agent's contribution would add value to current discussion.
+        
+        Args:
+            agent_name: Name of the agent.
+            discussion: Current discussion history.
+            
+        Returns:
+            True if contribution is likely needed.
+        """
+        if not discussion:
+            return True
+        
+        # Check if agent's perspective is missing
+        agent_names_contributed = {d["agent"] for d in discussion}
+        
+        # Core agents (Divergent, Convergent, Critical) should contribute early
+        core_agents = {"Divergent", "Convergent", "Critical"}
+        if agent_name in core_agents:
+            # If not all core agents have contributed yet, let them contribute
+            if not core_agents.issubset(agent_names_contributed):
+                return True
+        
+        # Support agents (Pragmatist, UserProxy, Quantifier) contribute when needed
+        support_agents = {"Pragmatist", "UserProxy", "Quantifier"}
+        if agent_name in support_agents:
+            # Wait until core discussion has started (at least 2 contributions)
+            if len(discussion) < 2:
+                return False
+            # Only contribute if can add specific value
+            return agent_name not in agent_names_contributed
         
         return True
     

@@ -85,7 +85,30 @@ class QueenAgent(BaseAgent):
             Response (str) or iterator of chunks (Iterator[str]).
         """
         logger.info("Handling simple request directly")
-        response = self.generate_response(user_input, stream=stream)
+        
+        # Use extremely minimal system prompt with few-shot example
+        simple_system = """You answer questions with ONLY the final answer. No reasoning. No steps. No explanation.
+
+Examples:
+Q: what is 2+2?
+A: 4
+
+Q: what is 50*60?
+A: 3000
+
+Q: what's the capital of France?
+A: Paris
+
+Now answer this question with ONLY the final answer:"""
+        
+        self.record_activity()
+        response = self.ollama.generate(
+            prompt=user_input,
+            system=simple_system,
+            temperature=0.0,
+            stream=stream,
+            max_tokens=30,
+        )
         return response
 
     def _handle_complex_request(self, user_input: str, stream: bool = False) -> Union[str, Iterator[str]]:

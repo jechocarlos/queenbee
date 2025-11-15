@@ -817,7 +817,7 @@ IMPORTANT - WEB SEARCH FIRST:
 
 KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Focus on practical constraints and what's actually achievable."""
 
-        else:  # Critical
+        elif agent_name == "Critical":
             token_instruction = f"Maximum {max_tokens_critical} tokens" if max_tokens_critical > 0 else "Keep it concise"
             prompt = f"""Original question: {user_input}
 
@@ -924,10 +924,6 @@ IMPORTANT - WEB SEARCH FIRST:
 
 KEEP IT BRIEF: {token_instruction} (roughly 1-2 sentences). Demand specific numbers and define concrete metrics."""
 
-        else:  # Critical (fallback)
-            token_instruction = f"Maximum {max_tokens_critical} tokens" if max_tokens_critical > 0 else "Keep it concise"
-            prompt = f"""You are the Critical validator. Provide critical analysis."""
-        
         # Get max_tokens from config based on agent type
         max_tokens = 0  # default no limit
         if agent_name == "Divergent":

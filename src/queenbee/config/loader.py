@@ -82,6 +82,9 @@ class AgentInferenceConfig(BaseSettings):
     divergent: str = Field(default="standard", description="Inference pack name for divergent agent")
     convergent: str = Field(default="standard", description="Inference pack name for convergent agent")
     critical: str = Field(default="standard", description="Inference pack name for critical agent")
+    pragmatist: str = Field(default="reasoning", description="Inference pack name for pragmatist agent")
+    user_proxy: str = Field(default="standard", description="Inference pack name for user proxy agent")
+    quantifier: str = Field(default="reasoning", description="Inference pack name for quantifier agent")
     summarizer: str = Field(default="standard", description="Inference pack name for summarizer agent")
     web_searcher: str = Field(default="web_search", description="Inference pack name for web searcher agent")
 
@@ -111,6 +114,9 @@ class AgentsConfig(BaseSettings):
     divergent: AgentPromptConfig
     convergent: AgentPromptConfig
     critical: AgentPromptConfig
+    pragmatist: AgentPromptConfig
+    user_proxy: AgentPromptConfig
+    quantifier: AgentPromptConfig
     summarizer: AgentPromptConfig
     web_searcher: AgentPromptConfig
 

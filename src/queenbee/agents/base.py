@@ -113,6 +113,12 @@ class BaseAgent:
             return self.config.agent_inference.convergent
         elif self.agent_type == AgentType.CRITICAL:
             return self.config.agent_inference.critical
+        elif self.agent_type == AgentType.PRAGMATIST:
+            return self.config.agent_inference.pragmatist
+        elif self.agent_type == AgentType.USER_PROXY:
+            return self.config.agent_inference.user_proxy
+        elif self.agent_type == AgentType.QUANTIFIER:
+            return self.config.agent_inference.quantifier
         elif self.agent_type == AgentType.SUMMARIZER:
             return self.config.agent_inference.summarizer
         elif self.agent_type == AgentType.WEB_SEARCHER:
@@ -135,6 +141,12 @@ class BaseAgent:
             prompt_file = self.config.agents.convergent.system_prompt_file
         elif self.agent_type == AgentType.CRITICAL:
             prompt_file = self.config.agents.critical.system_prompt_file
+        elif self.agent_type == AgentType.PRAGMATIST:
+            prompt_file = self.config.agents.pragmatist.system_prompt_file
+        elif self.agent_type == AgentType.USER_PROXY:
+            prompt_file = self.config.agents.user_proxy.system_prompt_file
+        elif self.agent_type == AgentType.QUANTIFIER:
+            prompt_file = self.config.agents.quantifier.system_prompt_file
         elif self.agent_type == AgentType.SUMMARIZER:
             prompt_file = self.config.agents.summarizer.system_prompt_file
         elif self.agent_type == AgentType.WEB_SEARCHER:
@@ -162,13 +174,27 @@ class BaseAgent:
             return {
                 "complexity_threshold": self.config.agents.queen.complexity_threshold,
             }
-        elif self.agent_type in [AgentType.DIVERGENT, AgentType.CONVERGENT, AgentType.CRITICAL, AgentType.SUMMARIZER]:
+        elif self.agent_type in [
+            AgentType.DIVERGENT, 
+            AgentType.CONVERGENT, 
+            AgentType.CRITICAL, 
+            AgentType.PRAGMATIST,
+            AgentType.USER_PROXY,
+            AgentType.QUANTIFIER,
+            AgentType.SUMMARIZER
+        ]:
             if self.agent_type == AgentType.DIVERGENT:
                 specialist_config = self.config.agents.divergent
             elif self.agent_type == AgentType.CONVERGENT:
                 specialist_config = self.config.agents.convergent
             elif self.agent_type == AgentType.CRITICAL:
                 specialist_config = self.config.agents.critical
+            elif self.agent_type == AgentType.PRAGMATIST:
+                specialist_config = self.config.agents.pragmatist
+            elif self.agent_type == AgentType.USER_PROXY:
+                specialist_config = self.config.agents.user_proxy
+            elif self.agent_type == AgentType.QUANTIFIER:
+                specialist_config = self.config.agents.quantifier
             else:  # SUMMARIZER
                 specialist_config = self.config.agents.summarizer
 

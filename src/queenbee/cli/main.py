@@ -89,20 +89,72 @@ def verify_ollama_models(config, provider_config) -> dict[str, bool]:
 
 
 def verify_openrouter_models(config, provider_config) -> dict[str, bool]:
-    """Verify OpenRouter API key is configured.
+    """Verify OpenRouter models by making test API calls for each unique model.
     
     Args:
         config: System configuration.
         provider_config: Provider-specific inference pack configuration.
         
     Returns:
-        Dictionary mapping model names to availability status (all True if API key exists).
+        Dictionary mapping model names to availability status.
     """
-    model_status = {}
-    api_key_valid = bool(config.openrouter.api_key and config.openrouter.api_key != "")
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    import httpx
     
-    for pack_name, pack in provider_config.packs.items():
-        model_status[pack.model] = api_key_valid
+    model_status = {}
+    
+    # Check if API key is configured
+    if not config.openrouter.api_key or config.openrouter.api_key == "":
+        # No API key - mark all as unavailable
+        for pack_name, pack in provider_config.packs.items():
+            model_status[pack.model] = False
+        return model_status
+    
+    # Get unique models to test (avoid duplicate API calls)
+    unique_models = set(pack.model for pack in provider_config.packs.values())
+    
+    logger = logging.getLogger(__name__)
+    
+    def test_model(model_name: str) -> tuple[str, bool]:
+        """Test a single model and return its availability."""
+        try:
+            with httpx.Client(verify=config.openrouter.verify_ssl, timeout=5.0) as client:
+                response = client.post(
+                    f"{config.openrouter.base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {config.openrouter.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": model_name,
+                        "messages": [{"role": "user", "content": "test"}],
+                        "max_tokens": 1,  # Minimal tokens to save cost
+                    },
+                )
+                
+                # Model is available if we get 200 or any response that's not 404/401
+                is_available = response.status_code in [200, 400, 429]
+                
+                if not is_available:
+                    logger.debug(f"Model {model_name} failed: {response.status_code}")
+                
+                return model_name, is_available
+            
+        except httpx.TimeoutException:
+            logger.warning(f"Timeout verifying model {model_name}")
+            return model_name, False
+        except Exception as e:
+            logger.warning(f"Error verifying model {model_name}: {e}")
+            return model_name, False
+    
+    # Test all models in parallel (max 4 concurrent requests)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(test_model, model): model for model in unique_models}
+        
+        for future in as_completed(futures):
+            model_name, is_available = future.result()
+            model_status[model_name] = is_available
     
     return model_status
 
@@ -208,8 +260,11 @@ def main() -> int:
         active_provider = 'openrouter' if using_openrouter else 'ollama'
         provider_config = config.inference_packs.openrouter if using_openrouter else config.inference_packs.ollama
         
-        # Verify model availability
-        console.print(f"[dim]Verifying model availability...[/dim]")
+        # Verify model availability - this makes actual API calls to test each model
+        if active_provider == 'openrouter':
+            unique_models = set(pack.model for pack in provider_config.packs.values())
+            console.print(f"[dim]Verifying {len(unique_models)} OpenRouter models (this may take a few seconds)...[/dim]")
+        
         if active_provider == 'ollama':
             model_status = verify_ollama_models(config, provider_config)
         else:
